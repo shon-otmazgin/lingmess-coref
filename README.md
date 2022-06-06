@@ -1,7 +1,11 @@
 # lingmess-coref
 
 
- conda create -y --name py27 python=2.7 && conda activate py27
+
+1. Create python environments
+
+        conda create -y --name py27 python=2.7 && conda activate py27
+        conda create -y --name lingmess-coref python=3.7
 
 
 This repo assumes access to the OntoNotes 5.0 corpus. Convert the original dataset into jsonlines format using:
