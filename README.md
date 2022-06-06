@@ -1,4 +1,7 @@
-# lingmess-coref
+# LingMess: Linguistically Informed Multi Expert Scorers for Coreference Resolution
+This repository is the official implementation of the paper ["LingMess: Linguistically Informed Multi Expert Scorers for Coreference Resolution"](https://arxiv.org/abs/2205.12644).
+
+Credit: Many code parts were taken from [s2e-coref](https://github.com/yuvalkirstain/s2e-coref#requirements) repo.
 
 ### Table of contents
 
