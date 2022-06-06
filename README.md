@@ -32,7 +32,7 @@ Download [OntoNotes 5.0](https://catalog.ldc.upenn.edu/LDC2013T19) corpus (regis
 
 Important: `ontonotes-release-5.0_LDC2013T19.tgz` must be under `data` folder.
 
-Run (~45 min):
+Setup (~45 min):
 ```
 cd data
 chmod 755 setup_ontonotes.sh
