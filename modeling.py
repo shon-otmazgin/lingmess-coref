@@ -4,8 +4,8 @@ from torch.nn import Module, Linear, LayerNorm, Dropout
 from transformers import BertPreTrainedModel, LongformerModel, RobertaModel, AutoModel
 from transformers.activations import ACT2FN
 
-from utilities.consts import CATEGORIES
-from utilities.utils import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, mask_tensor, \
+from consts import CATEGORIES
+from util import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, mask_tensor, \
     is_pronoun, get_head_id
 
 
@@ -303,7 +303,7 @@ class LingMessCoref(BertPreTrainedModel):
         return x.permute(0, 2, 1, 3)
 
     def forward(self, batch, gold_clusters=None, return_all_outputs=False):
-        token_idx_to_word_idx = batch['token_idx_to_word_idx']
+        subtoken_map = batch['subtoken_map']
         texts = batch['text']
         input_ids = batch['input_ids']
         attention_mask = batch['attention_mask']
@@ -324,7 +324,7 @@ class LingMessCoref(BertPreTrainedModel):
         batch_size, max_k = mention_start_ids.size()
 
         categories_labels, categories_masks = self._get_pairs_categories(
-            texts, token_idx_to_word_idx, mention_start_ids, mention_end_ids
+            texts, subtoken_map, mention_start_ids, mention_end_ids
         )
         categories_logits = self._calc_coref_logits(sequence_output, mention_start_ids, mention_end_ids)
 

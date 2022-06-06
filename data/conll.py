@@ -17,3 +17,6 @@ COREF_RESULTS_REGEX = re.compile(r".*Coreference: Recall: \([0-9.]+ / [0-9.]+\) 
 
 def get_doc_key(doc_id, part):
     return "{}_{}".format(doc_id, int(part))
+
+def evaluate_conll():
+    pass

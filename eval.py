@@ -2,13 +2,13 @@ import json
 import os
 import logging
 from collections import OrderedDict
-from utilities.conll2 import evaluate_conll
+from data.conll import evaluate_conll
 import numpy as np
 import torch
 
-from utilities.consts import CATEGORIES
-from utilities.metrics import CorefEvaluator, MentionEvaluator
-from utilities.utils import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, extract_clusters_for_decode
+from consts import CATEGORIES
+from metrics import CorefEvaluator, MentionEvaluator
+from util import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, extract_clusters_for_decode
 from tqdm import tqdm
 import time
 import wandb
@@ -16,10 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 class Evaluator:
-    def __init__(self, args, tokenizer, eval_dataloader):
+    def __init__(self, args, eval_dataloader):
         self.args = args
         self.output_dir = args.output_dir
-        self.tokenizer = tokenizer
         self.eval_dataloader = eval_dataloader
 
     def evaluate(self, model, prefix="", official=False):
@@ -34,7 +33,7 @@ class Evaluator:
         coref_evaluator = CorefEvaluator()
         doc_to_prediction = {}
         doc_to_subtoken_map = {}
-        doc_to_word_map = {}
+        doc_to_new_word_map = {}
 
         categories_eval = {cat_name: {'cat_id': cat_id, 'tp': 0, 'fp': 0, 'fn': 0, 'tn': 0}
                            for cat_name, cat_id in CATEGORIES.items()}
@@ -43,8 +42,8 @@ class Evaluator:
         data_iterator = tqdm(self.eval_dataloader, desc="evaluation")
         for idx, batch in enumerate(data_iterator):
             doc_keys = batch['doc_key']
-            token_idx_to_word_idx = batch['token_idx_to_word_idx']
-            word_map = batch['word_map']
+            subtoken_map = batch['subtoken_map']
+            new_word_map = batch['new_word_map']
             gold_clusters = batch['gold_clusters']
 
             start_time = time.time()
@@ -54,7 +53,6 @@ class Evaluator:
             end_time = time.time()
             total_time += end_time - start_time
 
-            # input_ids = input_ids.cpu().numpy()
             gold_clusters = gold_clusters.cpu().numpy()
             outputs_np = tuple(tensor.cpu().numpy() for tensor in outputs)
             for i, output in enumerate(zip(*outputs_np)):
@@ -65,6 +63,7 @@ class Evaluator:
 
                 starts, end_offsets, coref_logits, mention_logits, labels_after_pruning, categories_labels = output
 
+                # TODO: add to metrics
                 for category in categories_eval:
                     cat_id = categories_eval[category]['cat_id']
                     cat_mask = categories_labels == cat_id
@@ -72,17 +71,11 @@ class Evaluator:
                     labels = labels_after_pruning[:, :-1][cat_mask]
                     logits = coref_logits[:, :-1][cat_mask]
 
-                    # if category == 'entity2-contain-entity1':
-                    #     logits[labels == 1] = 10000
-                    #     logits[labels == 0] = -10000
-
                     categories_eval[category]['tn'] += np.logical_and(labels == 0., logits < 0).sum()
                     categories_eval[category]['fn'] += np.logical_and(labels == 1., logits < 0).sum()
 
                     categories_eval[category]['fp'] += np.logical_and(labels == 0., logits > 0).sum()
                     categories_eval[category]['tp'] += np.logical_and(labels == 1., logits > 0).sum()
-
-                    # coref_logits[:, :-1][cat_mask] = logits
 
                 max_antecedents = np.argmax(coref_logits, axis=1).tolist()
 
@@ -102,8 +95,8 @@ class Evaluator:
                 coref_evaluator.update(predicted_clusters, gold_clusters_i, mention_to_predicted_clusters, mention_to_gold_clusters)
 
                 doc_to_prediction[doc_key] = predicted_clusters
-                doc_to_subtoken_map[doc_key] = token_idx_to_word_idx[i]
-                doc_to_word_map[doc_key] = word_map[i]
+                doc_to_subtoken_map[doc_key] = subtoken_map[i]
+                doc_to_new_word_map[doc_key] = new_word_map[i]
 
         post_pruning_mention_precision, post_pruning_mentions_recall, post_pruning_mention_f1 = post_pruning_mention_evaluator.get_prf()
         mention_precision, mentions_recall, mention_f1 = mention_evaluator.get_prf()
@@ -144,20 +137,15 @@ class Evaluator:
                     writer.write(f"{key} = {value}\n")
             logger.info(f'Total time: {total_time:.6f} seconds')
 
-        # results["experiment_name"] = self.args.experiment_name
-        # results["data"] = prefix
-        # with open(os.path.join(self.args.output_dir, "results.jsonl"), "a+") as f:
-        #     f.write(json.dumps(results) + '\n')
-
-        if official:
-            with open(os.path.join(self.args.output_dir, "preds.jsonl"), "w") as f:
-                f.write(json.dumps(doc_to_prediction) + '\n')
-                f.write(json.dumps(doc_to_subtoken_map) + '\n')
-                f.write(json.dumps(doc_to_word_map) + '\n')
-
-            if self.args.conll_path_for_eval is not None:
-                conll_results = evaluate_conll(self.args.conll_path_for_eval, doc_to_prediction, doc_to_subtoken_map, doc_to_word_map)
-                official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
-                logger.info('Official avg F1: %.2f' % official_f1)
+        # if official:
+        #     with open(os.path.join(self.args.output_dir, "preds.jsonl"), "w") as f:
+        #         f.write(json.dumps(doc_to_prediction) + '\n')
+        #         f.write(json.dumps(doc_to_subtoken_map) + '\n')
+        #         f.write(json.dumps(doc_to_new_word_map) + '\n')
+        #
+        #     if self.args.conll_path_for_eval is not None:
+        #         conll_results = evaluate_conll(self.args.conll_path_for_eval, doc_to_prediction, doc_to_subtoken_map, doc_to_new_word_map)
+        #         official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
+        #         logger.info('Official avg F1: %.2f' % official_f1)
 
         return results

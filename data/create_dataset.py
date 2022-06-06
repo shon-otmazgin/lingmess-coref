@@ -86,6 +86,7 @@ if __name__ == '__main__':
         help="Huggingface Tokenizer name."
     )
     args = parser.parse_args()
+    # TODO: do something with the cache
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name, add_prefix_space=True, cache_dir='cache')
 
     files = {'train': args.train_file, 'dev': args.dev_file, 'test': args.test_file}
