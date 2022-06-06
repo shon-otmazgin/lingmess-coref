@@ -3,7 +3,7 @@ This repository is the official implementation of the paper ["LingMess: Linguist
 
 Credit: Many code parts were taken from [s2e-coref](https://github.com/yuvalkirstain/s2e-coref#requirements) repo.
 
-### Table of contents
+# Table of contents
 
 - [Environments and Requirements](#environments-and-requirements)
 - Create Datasets
