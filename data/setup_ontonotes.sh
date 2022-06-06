@@ -37,7 +37,7 @@ conll_url=http://conll.cemantix.org/2012/download
 #compile_language english
 
 conda activate lingmess-coref
-#python minimize.py
+python minimize.py
 python create_dataset.py \
        --tokenizer_name=roberta-base \
        --train_file=train.english.jsonlines \
