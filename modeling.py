@@ -1,12 +1,13 @@
+import numpy as np
 import torch
 from torch import nn
 from torch.nn import Module, Linear, LayerNorm, Dropout
 from transformers import BertPreTrainedModel, LongformerModel, RobertaModel, AutoModel
 from transformers.activations import ACT2FN
 
-from consts import CATEGORIES
+from consts import CATEGORIES, STOPWORDS
 from util import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, mask_tensor, \
-    is_pronoun, get_head_id
+    is_pronoun, get_head_id, get_head_id2
 
 
 class FullyConnectedLayer(Module):
@@ -152,19 +153,25 @@ class LingMessCoref(BertPreTrainedModel):
         new_cluster_labels[:, :, -1] = no_antecedents
         return new_cluster_labels
 
-    def _get_pairs_categories(self, texts, token_idx_to_word_idx, span_starts, span_ends):
-        categories_labels = []
+    def _get_pairs_categories(self, texts, subtoken_map, span_starts, span_ends):
+        batch_size, max_k = span_starts.size()
+
+        spans = []
         for b, (starts, ends) in enumerate(zip(span_starts.cpu().tolist(), span_ends.cpu().tolist())):
-            categories_labels.append([])
-            for i, (start, end) in enumerate(zip(starts, ends)):
-                categories_labels[b].append([-1] * len(starts))
-                word_indices = sorted(filter(None, set(token_idx_to_word_idx[b][start:end + 1])))
-                span_i = [texts[b][idx].lower() for idx in word_indices]
-                span_i_pronoun = is_pronoun(span_i)
-                for j, (a_start, a_end) in enumerate(list(zip(starts, ends))[:i]):
-                    word_indices = sorted(filter(None, set(token_idx_to_word_idx[b][a_start:a_end + 1])))
-                    span_j = [texts[b][idx].lower() for idx in word_indices]
-                    categories_labels[b][i][j] = get_head_id(span_i, span_j, span_i_pronoun)
+            doc_spans = []
+            for start, end in zip(starts, ends):
+                word_indices = sorted(set(subtoken_map[b][start:end + 1]) - {None})
+                span = {texts[b][idx].lower() for idx in word_indices}
+                pronoun_id = is_pronoun(span)
+                doc_spans.append((span - STOPWORDS, pronoun_id))
+            spans.append(doc_spans)
+
+        categories_labels = np.zeros((batch_size, max_k, max_k)) - 1
+        for b in range(batch_size):
+            for i in range(max_k):
+                for j in list(range(max_k))[:i]:
+                    categories_labels[b, i, j] = get_head_id2(spans[b][i], spans[b][j])
+
         categories_labels = torch.tensor(categories_labels, device=self.device)
         masks = [categories_labels == cat_id for cat_id in range(self.num_heads - 1)] + [categories_labels != -1]
         masks = torch.stack(masks, dim=1).int()

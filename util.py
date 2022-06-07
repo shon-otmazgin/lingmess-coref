@@ -128,17 +128,14 @@ def mask_tensor(t, mask):
 
 def is_pronoun(span):
     if len(span) == 1:
-        # if span[0] in PRONOUNS:
-        #     return True
-    # return False
+        span = list(span)
         if span[0] in PRONOUNS_GROUPS:
             return PRONOUNS_GROUPS[span[0]]
     return -1
 
 
-def get_head_id(mention, antecedent, mention_is_pronoun=None):
-    if mention_is_pronoun is None:
-        mention_is_pronoun = is_pronoun(mention)
+def get_head_id(mention, antecedent):
+    mention_is_pronoun = is_pronoun(mention)
     antecedent_is_pronoun = is_pronoun(antecedent)
 
     if mention_is_pronoun > -1 and antecedent_is_pronoun > -1:
@@ -152,6 +149,29 @@ def get_head_id(mention, antecedent, mention_is_pronoun=None):
 
     mention = set(mention) - STOPWORDS
     antecedent = set(antecedent) - STOPWORDS
+
+    if mention == antecedent:
+        return CATEGORIES['match']
+
+    union = mention.union(antecedent)
+    if len(union) == max(len(mention), len(antecedent)):
+        return CATEGORIES['contain']
+
+    return CATEGORIES['other']
+
+
+def get_head_id2(mention, antecedent):
+    mention, mention_is_pronoun = mention
+    antecedent, antecedent_is_pronoun = antecedent
+
+    if mention_is_pronoun > -1 and antecedent_is_pronoun > -1:
+        if mention_is_pronoun == antecedent_is_pronoun:
+            return CATEGORIES['pron-pron-comp']
+        else:
+            return CATEGORIES['pron-pron-no-comp']
+
+    if mention_is_pronoun > -1 or antecedent_is_pronoun > -1:
+        return CATEGORIES['pron-ent']
 
     if mention == antecedent:
         return CATEGORIES['match']
