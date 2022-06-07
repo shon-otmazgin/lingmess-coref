@@ -45,8 +45,8 @@ def parse_args():
     parser.add_argument("--weight_decay", default=0.01, type=float, help="Weight deay if we apply some.")
     parser.add_argument("--adam_beta1", default=0.9, type=float, help="Epsilon for Adam optimizer.")
     parser.add_argument("--adam_beta2", default=0.98, type=float, help="Epsilon for Adam optimizer.")
-    parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
-    parser.add_argument("--epochs", default=3.0, type=float, help="Total number of training epochs to perform.")
+    parser.add_argument("--adam_epsilon", default=1e-6, type=float, help="Epsilon for Adam optimizer.")
+    parser.add_argument("--train_epochs", default=3.0, type=float, help="Total number of training epochs to perform.")
     parser.add_argument("--ffnn_size", type=int, default=2048)
 
     parser.add_argument("--logging_steps", type=int, default=500, help="Log every X updates steps.")

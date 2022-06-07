@@ -6,8 +6,9 @@ import datasets
 import torch
 from transformers import AutoConfig, AutoTokenizer, LongformerConfig, RobertaConfig
 
+from create_batches import create_batches
 from modeling import LingMessCoref
-# from training import train
+from training import train
 from eval import Evaluator
 from util import set_seed, save_all
 from cli import parse_args
@@ -77,7 +78,7 @@ def main():
         max_doc_len = None
 
     eval_dataloader = DynamicBatchSampler(
-        dataset['test'],
+        dataset['dev'],
         collator=collator,
         max_tokens=args.max_tokens_in_batch,
         max_segment_len=args.max_segment_len,
@@ -85,33 +86,28 @@ def main():
     )
     evaluator = Evaluator(args=args, eval_dataloader=eval_dataloader)
 
-    # # Training
-    # if args.do_train:
-    #     train_batches_path = f'{args.train_dataset_path}_batches_longformer_{args.max_tokens_in_batch}'
-    #     try:
-    #         logger.info(f'Reading Train batches from {train_batches_path}')
-    #         train_batches = datasets.load_from_disk(train_batches_path)
-    #     except FileNotFoundError:
-    #         logger.info(f'Train batches not found !')
-    #         train_dataset = datasets.load_from_disk(args.train_dataset_path)
-    #         train_sampler = DynamicBatchSampler(
-    #             train_dataset['train'],
-    #             collator=longformer_collator,
-    #             max_tokens=args.max_tokens_in_batch,
-    #             max_segment_len=args.max_segment_len,
-    #             max_doc_len=4096
-    #         )
-    #         train_batches = create_batches(sampler=train_sampler, path_to_save=train_batches_path, leftovers=False)
-    #     train_batches = train_batches.shuffle(seed=args.seed)
-    #     logger.info(train_batches)
-    #
-    #     global_step, tr_loss = train(args, train_batches, model, tokenizer, evaluator)
-    #     logger.info(f"global_step = {global_step}, average loss = {tr_loss}")
-    #
-    #     # Save any files starting with "checkpoint" as they're written to
-    #     # logger.info(f"Uploads results to wandb")
-    #     # wandb.save(os.path.abspath(args.output_dir))
-    #
+    # Training
+    if args.do_train:
+        train_batches_path = f'{args.dataset_path}_batches_{args.max_tokens_in_batch}'
+        try:
+            logger.info(f'Reading Train batches from {train_batches_path}')
+            train_batches = datasets.load_from_disk(train_batches_path)
+        except FileNotFoundError:
+            logger.info(f'Train batches not found !')
+            train_dataset = datasets.load_from_disk(args.dataset_path)
+            train_sampler = DynamicBatchSampler(
+                train_dataset['train'],
+                collator=collator,
+                max_tokens=args.max_tokens_in_batch,
+                max_segment_len=args.max_segment_len,
+                max_doc_len=max_doc_len
+            )
+            train_batches = create_batches(sampler=train_sampler, path_to_save=train_batches_path, leftovers=False)
+        train_batches = train_batches.shuffle(seed=args.seed)
+        logger.info(train_batches)
+
+        global_step, tr_loss = train(args, train_batches, model, tokenizer, evaluator)
+        logger.info(f"global_step = {global_step}, average loss = {tr_loss}")
 
     # Evaluation
     results = {}
