@@ -65,21 +65,7 @@ class Evaluator:
                 mention_to_gold_clusters = extract_mentions_to_predicted_clusters_from_clusters(gold_clusters_i)
                 gold_mentions = list(mention_to_gold_clusters.keys())
 
-                # starts, end_offsets, coref_logits, mention_logits = output
-                starts, end_offsets, coref_logits, mention_logits, labels_after_pruning, categories_labels = output
-                # # TODO: add to metrics
-                # for category in categories_eval:
-                #     cat_id = categories_eval[category]['cat_id']
-                #     cat_mask = categories_labels == cat_id
-                #
-                #     labels = labels_after_pruning[:, :-1][cat_mask]
-                #     logits = coref_logits[:, :-1][cat_mask]
-                #
-                #     categories_eval[category]['tn'] += np.logical_and(labels == 0., logits < 0).sum()
-                #     categories_eval[category]['fn'] += np.logical_and(labels == 1., logits < 0).sum()
-                #
-                #     categories_eval[category]['fp'] += np.logical_and(labels == 0., logits > 0).sum()
-                #     categories_eval[category]['tp'] += np.logical_and(labels == 1., logits > 0).sum()
+                starts, end_offsets, coref_logits, categories_labels = output
 
                 max_antecedents = np.argmax(coref_logits, axis=1).tolist()
 
