@@ -1,13 +1,13 @@
+import math
 import numpy as np
 import torch
 from torch import nn
-from torch.nn import Module, Linear, LayerNorm, Dropout
+from torch.nn import Module, Linear, LayerNorm, Dropout, init
 from transformers import BertPreTrainedModel, LongformerModel, RobertaModel, AutoModel
 from transformers.activations import ACT2FN
 
 from consts import CATEGORIES, STOPWORDS
-from util import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, mask_tensor, \
-    is_pronoun, get_head_id, get_head_id2
+from util import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, mask_tensor, is_pronoun, get_category_id
 
 
 class FullyConnectedLayer(Module):
@@ -37,31 +37,36 @@ class LingMessCoref(BertPreTrainedModel):
         super().__init__(config)
         self.max_span_length = args.max_span_length
         self.top_lambda = args.top_lambda
+        self.hidden_size = config.hidden_size
         self.ffnn_size = args.ffnn_size
-        self.num_cats = len(CATEGORIES) + 1                # for sharing
-        self.all_head_size = self.ffnn_size * self.num_cats
+        self.num_cats = len(CATEGORIES) + 1                 # +1 for ALL
+        self.all_cats_size = self.ffnn_size * self.num_cats
 
         self.longformer = LongformerModel(config)
 
-        self.start_mention_mlp = FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
-        self.end_mention_mlp = FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
+        self.start_mention_mlp = FullyConnectedLayer(config, self.hidden_size, self.ffnn_size, args.dropout_prob)
+        self.end_mention_mlp = FullyConnectedLayer(config, self.hidden_size, self.ffnn_size, args.dropout_prob)
 
         self.mention_start_classifier = Linear(self.ffnn_size, 1)
         self.mention_end_classifier = Linear(self.ffnn_size, 1)
         self.mention_s2e_classifier = Linear(self.ffnn_size, self.ffnn_size)
 
-        self.antecedent_s2s_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
-        self.antecedent_e2e_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
-        self.antecedent_s2e_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
-        self.antecedent_e2s_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
+        self.start_coref_mlp = FullyConnectedLayer(config, config.hidden_size, self.all_cats_size, args.dropout_prob)
+        self.end_coref_mlp = FullyConnectedLayer(config, config.hidden_size, self.all_cats_size, args.dropout_prob)
 
-        self.start_coref_mlp_cat = nn.ModuleList([FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
-                                                  for _ in range(self.num_cats)])
-
-        self.end_coref_mlp_cat = nn.ModuleList([FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
-                                                for _ in range(self.num_cats)])
+        self.antecedent_s2s_classifier = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.antecedent_e2e_classifier = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.antecedent_s2e_classifier = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.antecedent_e2s_classifier = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.reset_parameters()
 
         self.init_weights()
+
+    def reset_parameters(self) -> None:
+        init.kaiming_uniform_(self.antecedent_s2s_classifier, a=math.sqrt(5))
+        init.kaiming_uniform_(self.antecedent_e2e_classifier, a=math.sqrt(5))
+        init.kaiming_uniform_(self.antecedent_s2e_classifier, a=math.sqrt(5))
+        init.kaiming_uniform_(self.antecedent_e2s_classifier, a=math.sqrt(5))
 
     def num_parameters(self) -> tuple:
         def head_filter(x):
@@ -155,7 +160,7 @@ class LingMessCoref(BertPreTrainedModel):
         new_cluster_labels = torch.tensor(new_cluster_labels, device=self.device)
         return new_cluster_labels
 
-    def _get_pairs_categories(self, texts, subtoken_map, span_starts, span_ends):
+    def _get_categories_labels(self, texts, subtoken_map, span_starts, span_ends):
         batch_size, max_k = span_starts.size()
 
         spans = []
@@ -172,12 +177,12 @@ class LingMessCoref(BertPreTrainedModel):
         for b in range(batch_size):
             for i in range(max_k):
                 for j in list(range(max_k))[:i]:
-                    categories_labels[b, i, j] = get_head_id2(spans[b][i], spans[b][j])
+                    categories_labels[b, i, j] = get_category_id(spans[b][i], spans[b][j])
 
         categories_labels = torch.tensor(categories_labels, device=self.device)
-        masks = [categories_labels == cat_id for cat_id in range(self.num_cats - 1)] + [categories_labels != -1]
-        masks = torch.stack(masks, dim=1).int()
-        return categories_labels, masks
+        categories_masks = [categories_labels == cat_id for cat_id in range(self.num_cats - 1)] + [categories_labels != -1]
+        categories_masks = torch.stack(categories_masks, dim=1).int()
+        return categories_labels, categories_masks
 
     def _get_marginal_log_likelihood_loss(self, logits, labels, span_mask):
         gold_coref_logits = mask_tensor(logits, labels)                       # [batch_size, num_cats + 1, max_k, max_k]
@@ -224,49 +229,32 @@ class LingMessCoref(BertPreTrainedModel):
         mention_logits = mask_tensor(mention_logits, mention_mask)  # [batch_size, seq_length, seq_length]
         return mention_logits
 
-    def _calc_coref_head_logits(self, top_k_start_coref_reps, top_k_end_coref_reps, cat_id):
-        # s2s
-        temp = self.antecedent_s2s_classifier_cat[cat_id](top_k_start_coref_reps)  # [batch_size, max_k, dim]
-        top_k_s2s_coref_logits = torch.matmul(temp,
-                                              top_k_start_coref_reps.permute([0, 2, 1]))  # [batch_size, max_k, max_k]
+    def _calc_coref_logits(self, start_reps, end_reps):
+        batch_size, max_k, _ = start_reps.size()
 
-        # e2e
-        temp = self.antecedent_e2e_classifier_cat[cat_id](top_k_end_coref_reps)  # [batch_size, max_k, dim]
-        top_k_e2e_coref_logits = torch.matmul(temp,
-                                              top_k_end_coref_reps.permute([0, 2, 1]))  # [batch_size, max_k, max_k]
+        # non-linear function
+        start_coref_reps = self.start_coref_mlp(start_reps)                                                     # [batch, max_k, ffnn * num_cats]
+        end_coref_reps = self.end_coref_mlp(end_reps)                                                           # [batch, max_k, ffnn * num_cats]
 
-        # s2e
-        temp = self.antecedent_s2e_classifier_cat[cat_id](top_k_start_coref_reps)  # [batch_size, max_k, dim]
-        top_k_s2e_coref_logits = torch.matmul(temp,
-                                              top_k_end_coref_reps.permute([0, 2, 1]))  # [batch_size, max_k, max_k]
+        # prepare tensor for matrix-batch multiplication
+        start_coref_reps = start_coref_reps.view((batch_size, self.num_cats, max_k, self.ffnn_size))            # [batch, num_cats, max_k, ffnn]
+        end_coref_reps = end_coref_reps.view((batch_size, self.num_cats, max_k, self.ffnn_size))                # [batch, num_cats, max_k, ffnn]
 
-        # e2s
-        temp = self.antecedent_e2s_classifier_cat[cat_id](top_k_end_coref_reps)  # [batch_size, max_k, dim]
-        top_k_e2s_coref_logits = torch.matmul(temp,
-                                              top_k_start_coref_reps.permute([0, 2, 1]))  # [batch_size, max_k, max_k]
+        temp = torch.matmul(start_coref_reps, self.antecedent_s2s_classifier)                                   # [batch, num_cats, max_k, ffnn]
+        s2s_coref_logits = torch.matmul(temp, start_coref_reps.permute([0, 1, 3, 2]))                           # [batch_size, num_cats, max_k, max_k]
+
+        temp = torch.matmul(end_coref_reps, self.antecedent_e2e_classifier)                                     # [batch, num_cats, max_k, ffnn]
+        e2e_coref_logits = torch.matmul(temp, end_coref_reps.permute([0, 1, 3, 2]))                             # [batch_size, num_cats, max_k, max_k]
+
+        temp = torch.matmul(start_coref_reps, self.antecedent_s2e_classifier)                                   # [batch, num_cats, max_k, ffnn]
+        s2e_coref_logits = torch.matmul(temp, end_coref_reps.permute([0, 1, 3, 2]))                             # [batch_size, num_cats, max_k, max_k]
+
+        temp = torch.matmul(end_coref_reps, self.antecedent_e2s_classifier)                                     # [batch, num_cats, max_k, ffnn]
+        e2s_coref_logits = torch.matmul(temp, start_coref_reps.permute([0, 1, 3, 2]))                           # [batch_size, num_cats, max_k, max_k]
 
         # sum all terms
-        coref_logits = top_k_s2e_coref_logits + top_k_e2s_coref_logits + top_k_s2s_coref_logits + top_k_e2e_coref_logits  # [batch_size, max_k, max_k]
+        coref_logits = s2e_coref_logits + e2s_coref_logits + s2s_coref_logits + e2e_coref_logits                # [batch_size, num_cats, max_k, max_k]
         return coref_logits
-
-    def _calc_coref_logits(self, sequence_output, mention_start_ids, mention_end_ids):
-        batch_size, max_k = mention_start_ids.size()
-        size = (batch_size, max_k, self.ffnn_size)
-
-        cat_logit_list = []
-        for cat_id in range(self.num_cats):
-            start_coref_reps = self.start_coref_mlp_cat[cat_id](sequence_output)
-            end_coref_reps = self.end_coref_mlp_cat[cat_id](sequence_output)
-
-            # gather reps
-            topk_start_coref_reps = torch.gather(start_coref_reps, dim=1, index=mention_start_ids.unsqueeze(-1).expand(size))
-            topk_end_coref_reps = torch.gather(end_coref_reps, dim=1, index=mention_end_ids.unsqueeze(-1).expand(size))
-
-            cat_coref_logits = self._calc_coref_head_logits(topk_start_coref_reps, topk_end_coref_reps, cat_id)
-
-            cat_logit_list.append(cat_coref_logits)
-
-        return torch.stack(cat_logit_list, dim=1)
 
     def _get_all_labels(self, clusters_labels, categories_masks):
         batch_size, max_k, _ = clusters_labels.size()
@@ -281,11 +269,6 @@ class LingMessCoref(BertPreTrainedModel):
         all_labels[:, :, :, -1] = no_antecedents
 
         return all_labels
-
-    def transpose_for_scores(self, x):
-        new_x_shape = x.size()[:-1] + (self.num_cats, self.ffnn_size)
-        x = x.view(new_x_shape)
-        return x.permute(0, 2, 1, 3)
 
     def forward(self, batch, gold_clusters=None, return_all_outputs=False):
         subtoken_map = batch['subtoken_map']
@@ -306,22 +289,30 @@ class LingMessCoref(BertPreTrainedModel):
         # prune mentions
         mention_start_ids, mention_end_ids, span_mask, topk_mention_logits = self._prune_topk_mentions(mention_logits, attention_mask)
 
-        batch_size, max_k = mention_start_ids.size()
-
-        categories_labels, categories_masks = self._get_pairs_categories(
+        categories_labels, categories_masks = self._get_categories_labels(
             texts, subtoken_map, mention_start_ids, mention_end_ids
         )
-        categories_logits = self._calc_coref_logits(sequence_output, mention_start_ids, mention_end_ids)
 
-        final_logits = (categories_logits * categories_masks).sum(dim=1) + topk_mention_logits
+        batch_size, max_k = mention_start_ids.size()
+        size = (batch_size, max_k, self.hidden_size)
+        # gather reps
+        topk_start_reps = torch.gather(sequence_output, dim=1, index=mention_start_ids.unsqueeze(-1).expand(size))
+        topk_end_reps = torch.gather(sequence_output, dim=1, index=mention_end_ids.unsqueeze(-1).expand(size))
+
+        # antecedent scores by category
+        categories_logits = self._calc_coref_logits(topk_start_reps, topk_end_reps)
+
+        final_logits = categories_logits * categories_masks
+        final_logits = final_logits.sum(dim=1) + topk_mention_logits
         categories_logits = categories_logits + topk_mention_logits.unsqueeze(1)
 
+        # lower logits of padded spans or different category.
         final_logits = self._mask_antecedent_logits(final_logits, span_mask)
         categories_logits = self._mask_antecedent_logits(categories_logits, span_mask, categories_masks)
 
         # adding zero logits for null span
-        final_logits = torch.cat((final_logits, torch.zeros((batch_size, max_k, 1), device=self.device)), dim=-1)  # [batch_size, max_k, max_k + 1]
-        categories_logits = torch.cat((categories_logits, torch.zeros((batch_size, self.num_cats, max_k, 1), device=self.device)), dim=-1)  # [batch_size, max_k, max_k + 1]
+        final_logits = torch.cat((final_logits, torch.zeros((batch_size, max_k, 1), device=self.device)), dim=-1)                           # [batch_size, max_k, max_k + 1]
+        categories_logits = torch.cat((categories_logits, torch.zeros((batch_size, self.num_cats, max_k, 1), device=self.device)), dim=-1)  # [batch_size, num_cats, max_k, max_k + 1]
 
         if return_all_outputs:
             outputs = (mention_start_ids, mention_end_ids, final_logits, categories_labels)
@@ -334,7 +325,7 @@ class LingMessCoref(BertPreTrainedModel):
             all_logits = torch.cat((categories_logits, final_logits.unsqueeze(1)), dim=1)
 
             loss = self._get_marginal_log_likelihood_loss(all_logits, all_labels, span_mask)
-            outputs = (loss,) + outputs
+            outputs = (loss,) + outputs + (clusters_labels, )
 
         return outputs
 

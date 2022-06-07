@@ -157,7 +157,7 @@ def get_head_id(mention, antecedent):
     return CATEGORIES['other']
 
 
-def get_head_id2(mention, antecedent):
+def get_category_id(mention, antecedent):
     mention, mention_is_pronoun = mention
     antecedent, antecedent_is_pronoun = antecedent
 
