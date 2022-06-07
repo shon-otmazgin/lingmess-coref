@@ -38,7 +38,7 @@ class Evaluator:
         categories_eval = {cat_name: {'cat_id': cat_id, 'tp': 0, 'fp': 0, 'fn': 0, 'tn': 0}
                            for cat_name, cat_id in CATEGORIES.items()}
 
-        total_loss = 0
+        eval_loss = 0
         total_time = 0
         data_iterator = tqdm(self.eval_dataloader, desc="evaluation")
         for idx, batch in enumerate(data_iterator):
@@ -52,7 +52,7 @@ class Evaluator:
                 outputs = model(batch, gold_clusters=gold_clusters, return_all_outputs=True)
 
             loss, outputs = outputs[0], outputs[1:]
-            total_loss += loss.item()
+            eval_loss += loss.item()
 
             end_time = time.time()
             total_time += end_time - start_time
@@ -106,7 +106,7 @@ class Evaluator:
         prec, rec, f1 = coref_evaluator.get_prf()
 
         results = {
-            "loss": total_loss,
+            "eval_loss": eval_loss,
             "post pruning mention precision": post_pruning_mention_precision,
             "post pruning mention recall": post_pruning_mentions_recall,
             "post pruning mention f1": post_pruning_mention_f1,
