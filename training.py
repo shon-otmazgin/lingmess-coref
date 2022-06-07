@@ -94,7 +94,7 @@ def train(args, train_batches, model, tokenizer, evaluator):
 
                     # Save model
                     output_dir = os.path.join(args.output_dir, f'model')
-                    save_all(tokenizer=tokenizer, model=model, args=args, output_dir=output_dir)
+                    save_all(tokenizer=tokenizer, model=model, output_dir=output_dir)
                 logger.info(f"best f1 is {best_f1} on global step {best_global_step}")
 
     with open(os.path.join(args.output_dir, f"best_f1.json"), "w") as f:
