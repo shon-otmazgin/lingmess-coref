@@ -38,8 +38,8 @@ class LingMessCoref(BertPreTrainedModel):
         self.max_span_length = args.max_span_length
         self.top_lambda = args.top_lambda
         self.ffnn_size = args.ffnn_size
-        self.num_heads = len(CATEGORIES) + 1                # for sharing
-        self.all_head_size = self.ffnn_size * self.num_heads
+        self.num_cats = len(CATEGORIES) + 1                # for sharing
+        self.all_head_size = self.ffnn_size * self.num_cats
 
         self.longformer = LongformerModel(config)
 
@@ -50,16 +50,16 @@ class LingMessCoref(BertPreTrainedModel):
         self.mention_end_classifier = Linear(self.ffnn_size, 1)
         self.mention_s2e_classifier = Linear(self.ffnn_size, self.ffnn_size)
 
-        self.antecedent_s2s_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_heads)])
-        self.antecedent_e2e_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_heads)])
-        self.antecedent_s2e_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_heads)])
-        self.antecedent_e2s_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_heads)])
+        self.antecedent_s2s_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
+        self.antecedent_e2e_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
+        self.antecedent_s2e_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
+        self.antecedent_e2s_classifier_cat = nn.ModuleList([Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
 
         self.start_coref_mlp_cat = nn.ModuleList([FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
-                                                  for _ in range(self.num_heads)])
+                                                  for _ in range(self.num_cats)])
 
         self.end_coref_mlp_cat = nn.ModuleList([FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
-                                                for _ in range(self.num_heads)])
+                                                for _ in range(self.num_cats)])
 
         self.init_weights()
 
@@ -128,7 +128,7 @@ class LingMessCoref(BertPreTrainedModel):
         antecedent_logits = mask_tensor(antecedent_logits, mask)
         return antecedent_logits
 
-    def _get_cluster_labels(self, span_starts, span_ends, all_clusters):
+    def _get_clusters_labels(self, span_starts, span_ends, all_clusters):
         """
         :param span_starts: [batch_size, max_k]
         :param span_ends: [batch_size, max_k]
@@ -136,21 +136,23 @@ class LingMessCoref(BertPreTrainedModel):
         :return: [batch_size, max_k, max_k + 1] - [b, i, j] == 1 if j is antecedent of i
         """
         batch_size, max_k = span_starts.size()
-        new_cluster_labels = torch.zeros((batch_size, max_k, max_k + 1), device='cpu')
-        all_clusters_cpu = all_clusters.cpu().numpy()
-        for b, (starts, ends, gold_clusters) in enumerate(zip(span_starts.cpu().tolist(), span_ends.cpu().tolist(), all_clusters_cpu)):
+        new_cluster_labels = np.zeros((batch_size, max_k, max_k))
+
+        span_starts_cpu = span_starts.cpu().tolist()
+        span_ends_cpu = span_ends.cpu().tolist()
+        all_clusters_cpu = all_clusters.cpu().tolist()
+
+        for b, (starts, ends, gold_clusters) in enumerate(zip(span_starts_cpu, span_ends_cpu, all_clusters_cpu)):
             gold_clusters = extract_clusters(gold_clusters)
             mention_to_gold_clusters = extract_mentions_to_predicted_clusters_from_clusters(gold_clusters)
-            gold_mentions = set(mention_to_gold_clusters.keys())
             for i, (start, end) in enumerate(zip(starts, ends)):
-                if (start, end) not in gold_mentions:
+                if (start, end) not in mention_to_gold_clusters:
                     continue
                 for j, (a_start, a_end) in enumerate(list(zip(starts, ends))[:i]):
                     if (a_start, a_end) in mention_to_gold_clusters[(start, end)]:
                         new_cluster_labels[b, i, j] = 1
-        new_cluster_labels = new_cluster_labels.to(self.device)
-        no_antecedents = 1 - torch.sum(new_cluster_labels, dim=-1).bool().float()
-        new_cluster_labels[:, :, -1] = no_antecedents
+
+        new_cluster_labels = torch.tensor(new_cluster_labels, device=self.device)
         return new_cluster_labels
 
     def _get_pairs_categories(self, texts, subtoken_map, span_starts, span_ends):
@@ -173,56 +175,29 @@ class LingMessCoref(BertPreTrainedModel):
                     categories_labels[b, i, j] = get_head_id2(spans[b][i], spans[b][j])
 
         categories_labels = torch.tensor(categories_labels, device=self.device)
-        masks = [categories_labels == cat_id for cat_id in range(self.num_heads - 1)] + [categories_labels != -1]
+        masks = [categories_labels == cat_id for cat_id in range(self.num_cats - 1)] + [categories_labels != -1]
         masks = torch.stack(masks, dim=1).int()
         return categories_labels, masks
 
-    def _get_categories_marginal_log_likelihood_loss(self, coref_logits, cluster_labels_after_pruning, span_mask):
-        """
-        :param coref_logits: [batch_size, max_k, max_k]
-        :param cluster_labels_after_pruning: [batch_size, max_k, max_k]
-        :param span_mask: [batch_size, max_k]
-        :return:
-        """
-        gold_coref_logits = mask_tensor(coref_logits, cluster_labels_after_pruning)
+    def _get_marginal_log_likelihood_loss(self, logits, labels, span_mask):
+        gold_coref_logits = mask_tensor(logits, labels)                       # [batch_size, num_cats + 1, max_k, max_k]
 
-        gold_log_sum_exp = torch.logsumexp(gold_coref_logits, dim=-1)           # [batch_size, num_head, max_k]
-        all_log_sum_exp = torch.logsumexp(coref_logits, dim=-1)                 # [batch_size, num_head, max_k]
+        gold_log_sum_exp = torch.logsumexp(gold_coref_logits, dim=-1)         # [batch_size, num_cats + 1, max_k]
+        all_log_sum_exp = torch.logsumexp(logits, dim=-1)                     # [batch_size, num_cats + 1, max_k]
+        losses = all_log_sum_exp - gold_log_sum_exp                           # [batch_size, num_cats + 1, max_k]
 
-        gold_log_probs = gold_log_sum_exp - all_log_sum_exp
-        losses = - gold_log_probs                                               # [batch_size, num_head, max_k]
+        # zero the loss of padded spans
+        span_mask = span_mask.unsqueeze(1)                                    # [batch_size, 1, max_k]
+        losses = losses * span_mask                                           # [batch_size, num_cats, max_k]
 
-        losses = losses * span_mask.unsqueeze(1)
+        # normalize loss by spans
+        per_span_loss = losses.mean(dim=-1)                                   # [batch_size, num_cats + 1]
 
-        # normalise_loss by num of spans
-        per_example_loss = torch.sum(losses, dim=-1)                            # [batch_size, num_head]
-        per_example_loss = per_example_loss / losses.size(-1)
+        # normalize loss by document
+        loss_per_cat = per_span_loss.mean(dim=0)                              # [num_cats + 1]
 
-        loss_per_head = per_example_loss.mean(dim=0)                            # [num_head]
-        loss = loss_per_head.sum()
-
-        return loss
-
-    def _get_marginal_log_likelihood_loss(self, coref_logits, cluster_labels_after_pruning, span_mask):
-        """
-        :param coref_logits: [batch_size, max_k, max_k]
-        :param cluster_labels_after_pruning: [batch_size, max_k, max_k]
-        :param span_mask: [batch_size, max_k]
-        :return:
-        """
-        gold_coref_logits = mask_tensor(coref_logits, cluster_labels_after_pruning)
-
-        gold_log_sum_exp = torch.logsumexp(gold_coref_logits, dim=-1)  # [batch_size, max_k]
-        all_log_sum_exp = torch.logsumexp(coref_logits, dim=-1)  # [batch_size, max_k]
-
-        gold_log_probs = gold_log_sum_exp - all_log_sum_exp
-        losses = - gold_log_probs
-
-        losses = losses * span_mask
-        per_example_loss = torch.sum(losses, dim=-1)  # [batch_size]
-
-        per_example_loss = per_example_loss / losses.size(-1)
-        loss = per_example_loss.mean()
+        # normalize loss by category
+        loss = loss_per_cat.sum()
         return loss
 
     def _get_mention_mask(self, mention_logits_or_weights):
@@ -279,7 +254,7 @@ class LingMessCoref(BertPreTrainedModel):
         size = (batch_size, max_k, self.ffnn_size)
 
         cat_logit_list = []
-        for cat_id in range(self.num_heads):
+        for cat_id in range(self.num_cats):
             start_coref_reps = self.start_coref_mlp_cat[cat_id](sequence_output)
             end_coref_reps = self.end_coref_mlp_cat[cat_id](sequence_output)
 
@@ -293,19 +268,22 @@ class LingMessCoref(BertPreTrainedModel):
 
         return torch.stack(cat_logit_list, dim=1)
 
-    def get_categories_labels(self, clusters_labels, categories_masks):
+    def _get_all_labels(self, clusters_labels, categories_masks):
         batch_size, max_k, _ = clusters_labels.size()
 
-        categories_labels = clusters_labels.unsqueeze(1).repeat(1, self.num_heads, 1, 1)
-        categories_labels = categories_labels[:, :, :, :-1] * categories_masks
-        categories_labels = torch.cat((categories_labels, torch.zeros((batch_size, self.num_heads, max_k, 1), device=self.device)), dim=-1)  # [batch_size, max_k, max_k + 1]
+        categories_labels = clusters_labels.unsqueeze(1).repeat(1, self.num_cats, 1, 1) * categories_masks
+        all_labels = torch.cat((categories_labels, clusters_labels.unsqueeze(1)), dim=1)      # for the combined loss (L_coref)
 
-        no_antecedents = 1 - torch.sum(categories_labels, dim=-1).bool().float()
-        categories_labels[:, :, :, -1] = no_antecedents
-        return categories_labels
+        # null cluster
+        zeros = torch.zeros((batch_size, self.num_cats + 1, max_k, 1), device=self.device)
+        all_labels = torch.cat((all_labels, zeros), dim=-1)                      # [batch_size, num_cats + 1, max_k, max_k + 1]
+        no_antecedents = 1 - torch.sum(all_labels, dim=-1).bool().float()
+        all_labels[:, :, :, -1] = no_antecedents
+
+        return all_labels
 
     def transpose_for_scores(self, x):
-        new_x_shape = x.size()[:-1] + (self.num_heads, self.ffnn_size)
+        new_x_shape = x.size()[:-1] + (self.num_cats, self.ffnn_size)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
 
@@ -343,7 +321,7 @@ class LingMessCoref(BertPreTrainedModel):
 
         # adding zero logits for null span
         final_logits = torch.cat((final_logits, torch.zeros((batch_size, max_k, 1), device=self.device)), dim=-1)  # [batch_size, max_k, max_k + 1]
-        categories_logits = torch.cat((categories_logits, torch.zeros((batch_size, self.num_heads, max_k, 1), device=self.device)), dim=-1)  # [batch_size, max_k, max_k + 1]
+        categories_logits = torch.cat((categories_logits, torch.zeros((batch_size, self.num_cats, max_k, 1), device=self.device)), dim=-1)  # [batch_size, max_k, max_k + 1]
 
         if return_all_outputs:
             outputs = (mention_start_ids, mention_end_ids, final_logits, topk_mention_logits)
@@ -351,10 +329,11 @@ class LingMessCoref(BertPreTrainedModel):
             outputs = tuple()
 
         if gold_clusters is not None:
-            clusters_labels = self._get_cluster_labels(mention_start_ids, mention_end_ids, gold_clusters)
-            clusters_categories_labels = self.get_categories_labels(clusters_labels, categories_masks)
-            loss = self._get_categories_marginal_log_likelihood_loss(categories_logits, clusters_categories_labels, span_mask)
-            loss += self._get_marginal_log_likelihood_loss(final_logits, clusters_labels, span_mask)
+            clusters_labels = self._get_clusters_labels(mention_start_ids, mention_end_ids, gold_clusters)
+            all_labels = self._get_all_labels(clusters_labels, categories_masks)
+            all_logits = torch.cat((categories_logits, final_logits.unsqueeze(1)), dim=1)
+
+            loss = self._get_marginal_log_likelihood_loss(all_logits, all_labels, span_mask)
             outputs = (loss,) + outputs + (clusters_labels, categories_labels,)
 
         return outputs

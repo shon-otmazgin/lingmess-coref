@@ -61,11 +61,8 @@ def save_all(model, tokenizer, output_dir):
     tokenizer.save_pretrained(output_dir)
 
 
-def extract_clusters(gold_clusters, is_list=False):
-    if is_list:
-        gold_clusters = [tuple(tuple(m) for m in gc if NULL_ID_FOR_COREF not in m) for gc in gold_clusters]
-    else:
-        gold_clusters = [tuple(tuple(m) for m in gc if NULL_ID_FOR_COREF not in m) for gc in gold_clusters.tolist()]
+def extract_clusters(gold_clusters):
+    gold_clusters = [tuple(tuple(m) for m in gc if NULL_ID_FOR_COREF not in m) for gc in gold_clusters]
     gold_clusters = [cluster for cluster in gold_clusters if len(cluster) > 0]
     return gold_clusters
 
@@ -74,7 +71,7 @@ def extract_mentions_to_predicted_clusters_from_clusters(gold_clusters):
     mention_to_gold = {}
     for gc in gold_clusters:
         for mention in gc:
-            mention_to_gold[tuple(mention)] = gc
+            mention_to_gold[mention] = gc
     return mention_to_gold
 
 
