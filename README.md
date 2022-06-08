@@ -12,8 +12,8 @@ Credit: Many code parts were taken from [s2e-coref](https://github.com/yuvalkirs
      OR
   
    * [Prepare your own custom dataset](#prepare-your-own-custom-dataset)
-- [Training](#training)
 - [Evaluation](#evaluation)
+- [Training](#training)
 - [Citation](#citation)
 
 ## Environments and Requirements
@@ -62,8 +62,56 @@ Recommended: add `doc_key` attribute as well for easy prediction tracking.
 
 Note: For training on you own dataset the train file should contain gold clusters information as well.
 
-## Training
-
 ## Evaluation
+
+Evaluate on you own dataset
+```
+python run.py \
+       --output_dir=evaluation \
+       --overwrite_output_dir \
+       --model_name_or_path=shon711/lingmess-longformer \
+       --test_file=PATH_TO_JSONLINES_FILE \
+       --eval_split=test \
+       --max_tokens_in_batch=15000 \
+       --device=cuda:0
+```
+The predicted clusters located in `PATH_TO_JSONLINES_FILE.output`
+
+Replicate Evaluation on `OntoNotes` test set with `Longformer`
+```
+python run.py \
+       --output_dir=evaluation \
+       --overwrite_output_dir \
+       --model_name_or_path=shon711/lingmess-longformer \
+       --test_file=data/test.english.jsonlines \
+       --eval_split=test \
+       --max_tokens_in_batch=15000 \
+       --device=cuda:0
+```
+
+## Training
+Currently the implementation supports `['longformer', 'roberta', 'bert']` transformers, but it should be easy to use any other transformer.
+
+Replicate Train on `OntoNotes` with `Longformer`
+```
+python run.py \
+       --output_dir=lingmess-longformer \
+       --overwrite_output_dir \
+       --model_name_or_path=allenai/longformer-large-4096 \
+       --train_file=data/train.english.jsonlines \
+       --dev_file=data/dev.english.jsonlines \
+       --test_file=data/test.english.jsonlines \
+       --max_tokens_in_batch=5000 \
+       --do_train \
+       --eval_split=dev \
+       --logging_steps=500 \
+       --eval_steps=1000 \
+       --train_epochs=129 \
+       --head_learning_rate=3e-4 \
+       --learning_rate=1e-5 \
+       --ffnn_size=2048 \
+       --experiment_name="lingmess" \
+       --device=cuda:0
+```
 
 ## Citation
