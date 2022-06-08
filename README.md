@@ -52,7 +52,7 @@ Custom dataset guidelines:
 
 option #1:
 ```
-    {"doc_key": "DOC_KEY_1, "text": "this is document number 1, its text is raw text"},
+    {"doc_key": "DOC_KEY_1, "text": "this is document number 1, it's text is raw text"},
 ```   
 option #2:
 ```
