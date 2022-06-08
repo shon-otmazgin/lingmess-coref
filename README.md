@@ -48,7 +48,7 @@ Our implementation supports also custom dataset, both for training and inference
 Custom dataset guidelines:
 1. Each dataset split (train/dev/test) should be in separate file.
 2. Each file should be in `jsonlines` format
-3. Each line in the file should have either `text` attribute or `tokens` attribute
+3. Each line in the file should have either `text` attribute or `tokens` attribute, if you choose to use `text` we will run `Spacy` tokenizer.
 
 option #1:
 ```
