@@ -291,7 +291,23 @@ class LingMessCoref(BertPreTrainedModel):
             outputs = self.base_model(input_ids, attention_mask=attention_mask)
             sequence_output = outputs.last_hidden_state
         else:
-            pass
+            docs, segments, segment_len = input_ids.size()
+            input_ids, attention_mask = input_ids.view(-1, segment_len), attention_mask.view(-1, segment_len)
+
+            outputs = self.base_model(input_ids, attention_mask=attention_mask)
+            sequence_output = outputs.last_hidden_state
+
+            attention_mask = attention_mask.view((docs, segments * segment_len))        # [docs, seq_len]
+            sequence_output = sequence_output.view((docs, segments * segment_len, -1))  # [docs, seq_len, dim]
+
+            leftovers_ids, leftovers_mask = batch['leftovers']['input_ids'], batch['leftovers']['attention_mask']
+            if len(leftovers_ids) > 0:
+                res_outputs = self.base_model(leftovers_ids, attention_mask=leftovers_mask)
+                res_sequence_output = res_outputs.last_hidden_state
+
+                attention_mask = torch.cat([attention_mask, leftovers_mask], dim=1)
+                sequence_output = torch.cat([sequence_output, res_sequence_output], dim=1)
+
         return sequence_output, attention_mask
 
     def forward(self, batch, gold_clusters=None, return_all_outputs=False):

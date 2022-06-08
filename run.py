@@ -65,7 +65,7 @@ def main():
     t_params, h_params = [p / 1000000 for p in model.num_parameters()]
     logger.info(f'Parameters: {t_params + h_params:.1f}M, Transformer: {t_params:.1f}M, Head: {h_params:.1f}M')
 
-    # load datasets and loaders for eval
+    # load datasets
     dataset = datasets.load_from_disk(args.dataset_path)
     if args.base_model == 'longformer':
         collator = LongformerCollator(tokenizer=tokenizer, device=args.device)
@@ -85,22 +85,14 @@ def main():
 
     # Training
     if args.do_train:
-        train_batches_path = f'{args.dataset_path}_batches_{args.base_model}_{args.max_tokens_in_batch}'
-        try:
-            logger.info(f'Reading Train batches from {train_batches_path}')
-            train_batches = datasets.load_from_disk(train_batches_path)
-        except FileNotFoundError:
-            logger.info(f'Train batches not found !')
-            train_dataset = datasets.load_from_disk(args.dataset_path)
-            train_sampler = DynamicBatchSampler(
-                train_dataset['train'],
-                collator=collator,
-                max_tokens=args.max_tokens_in_batch,
-                max_segment_len=args.max_segment_len,
-                max_doc_len=max_doc_len
-            )
-            train_batches = create_batches(sampler=train_sampler, path_to_save=train_batches_path)
-        train_batches = train_batches.shuffle(seed=args.seed)
+        train_sampler = DynamicBatchSampler(
+            dataset['train'],
+            collator=collator,
+            max_tokens=args.max_tokens_in_batch,
+            max_segment_len=args.max_segment_len,
+            max_doc_len=max_doc_len
+        )
+        train_batches = create_batches(sampler=train_sampler).shuffle(seed=args.seed)
         logger.info(train_batches)
 
         global_step, tr_loss = train(args, train_batches, model, tokenizer, evaluator)

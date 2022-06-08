@@ -55,9 +55,12 @@ def train(args, train_batches, model, tokenizer, evaluator):
     for _ in train_iterator:
         epoch_iterator = tqdm(train_batches, desc="Iteration")
         for step, batch in enumerate(epoch_iterator):
-            batch['input_ids'] = torch.tensor(batch['input_ids']).to(args.device)
-            batch['attention_mask'] = torch.tensor(batch['attention_mask']).to(args.device)
-            batch['gold_clusters'] = torch.tensor(batch['gold_clusters']).to(args.device)
+            batch['input_ids'] = torch.tensor(batch['input_ids'], device=args.device)
+            batch['attention_mask'] = torch.tensor(batch['attention_mask'], device=args.device)
+            batch['gold_clusters'] = torch.tensor(batch['gold_clusters'], device=args.device)
+            if 'leftovers' in batch:
+                batch['leftovers']['input_ids'] = torch.tensor(batch['leftovers']['input_ids'], device=args.device)
+                batch['leftovers']['attention_mask'] = torch.tensor(batch['leftovers']['attention_mask'], device=args.device)
 
             model.zero_grad()
             model.train()
