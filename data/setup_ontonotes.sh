@@ -38,8 +38,3 @@ conll_url=http://conll.cemantix.org/2012/download
 
 conda activate lingmess-coref
 python minimize.py
-python create_dataset.py \
-       --tokenizer_name=roberta-base \
-       --train_file=train.english.jsonlines \
-       --dev_file=dev.english.jsonlines \
-       --test_file=test.english.jsonlines

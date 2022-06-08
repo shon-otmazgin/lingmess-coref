@@ -2,16 +2,15 @@ import logging
 import os
 import shutil
 
-import datasets
+import coref_dataset
 import torch
-from transformers import AutoConfig, AutoTokenizer, LongformerConfig, RobertaConfig, DebertaV2Config
+from transformers import AutoConfig, AutoTokenizer
 
 from consts import SUPPORTED_MODELS
-from create_batches import create_batches
 from modeling import LingMessCoref
 from training import train
 from eval import Evaluator
-from util import set_seed, save_all
+from util import set_seed
 from cli import parse_args
 from collate import LongformerCollator, DynamicBatchSampler, SegmentCollator
 import wandb
@@ -47,7 +46,7 @@ def main():
     args.cache_dir = '~/.cache'
 
     config = AutoConfig.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir)
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(config._name_or_path, add_prefix_space=True, cache_dir=args.cache_dir)
 
     model, loading_info = LingMessCoref.from_pretrained(
         args.model_name_or_path, output_loading_info=True,
@@ -66,7 +65,10 @@ def main():
     logger.info(f'Parameters: {t_params + h_params:.1f}M, Transformer: {t_params:.1f}M, Head: {h_params:.1f}M')
 
     # load datasets
-    dataset = datasets.load_from_disk(args.dataset_path)
+    dataset = coref_dataset.create(
+        tokenizer=tokenizer,
+        train_file=args.train_file, dev_file=args.dev_file, test_file=args.test_file
+    )
     if args.base_model == 'longformer':
         collator = LongformerCollator(tokenizer=tokenizer, device=args.device)
         max_doc_len = 4096
@@ -92,7 +94,7 @@ def main():
             max_segment_len=args.max_segment_len,
             max_doc_len=max_doc_len
         )
-        train_batches = create_batches(sampler=train_sampler).shuffle(seed=args.seed)
+        train_batches = coref_dataset.create_batches(sampler=train_sampler).shuffle(seed=args.seed)
         logger.info(train_batches)
 
         global_step, tr_loss = train(args, train_batches, model, tokenizer, evaluator)

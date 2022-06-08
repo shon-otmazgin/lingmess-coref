@@ -20,13 +20,24 @@ def parse_args():
         help="The output directory where the model checkpoints and predictions will be written.",
     )
     parser.add_argument("--overwrite_output_dir", action="store_true", help="Overwrite the content of the output directory")
-    # Other parameters
+
     parser.add_argument(
-        "--dataset_path",
+        "--train_file",
         type=str,
-        required=True,
-        help="The path to the huggingface dataset object of ontonotes/silver dataset to be train on. "
-             "this should be the dataset created using create_datasets.py script"
+        default=None,
+        help="Training set file path. should be jsonlines."
+    )
+    parser.add_argument(
+        "--dev_file",
+        type=str,
+        default=None,
+        help="Development set file path. should be jsonlines."
+    )
+    parser.add_argument(
+        "--test_file",
+        type=str,
+        default=None,
+        help="Test set file path. should be jsonlines."
     )
 
     parser.add_argument("--do_train", action="store_true", help="Whether to run training.")

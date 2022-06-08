@@ -1,4 +1,4 @@
-SUPPORTED_MODELS = ['longformer', 'roberta', 'deberta', 'bert']
+SUPPORTED_MODELS = ['longformer', 'roberta', 'bert']
 SPEAKER_START = '#####'
 SPEAKER_END = '###'
 NULL_ID_FOR_COREF = -1
