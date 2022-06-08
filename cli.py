@@ -7,13 +7,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--model_type",
-        default="longformer",
-        type=str,
-        required=True,
-        help="Model type selected in the list: " + ", ".join(MODEL_TYPES),
-    )
-    parser.add_argument(
         "--model_name_or_path",
         default="allenai/longformer-large-4096",
         type=str,

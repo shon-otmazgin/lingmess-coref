@@ -4,15 +4,16 @@ import shutil
 
 import datasets
 import torch
-from transformers import AutoConfig, AutoTokenizer, LongformerConfig, RobertaConfig
+from transformers import AutoConfig, AutoTokenizer, LongformerConfig, RobertaConfig, DebertaV2Config
 
+from consts import SUPPORTED_MODELS
 from create_batches import create_batches
 from modeling import LingMessCoref
 from training import train
 from eval import Evaluator
 from util import set_seed, save_all
 from cli import parse_args
-from collate import LongformerCollator, DynamicBatchSampler
+from collate import LongformerCollator, DynamicBatchSampler, SegmentCollator
 import wandb
 
 # Setup logging
@@ -48,18 +49,15 @@ def main():
     config = AutoConfig.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir, use_fast=False)
 
-    if args.model_type == 'longformer':
-        LingMessCoref.config_class = LongformerConfig
-    elif args.model_type == 'roberta':
-        LingMessCoref.config_class = RobertaConfig
-    else:
-        raise NotImplementedError(f'Model not supporting {args.model_type}, choose "longformer" or "roberta"')
-
-    LingMessCoref.base_model_prefix = args.model_type
     model, loading_info = LingMessCoref.from_pretrained(
         args.model_name_or_path, output_loading_info=True,
         config=config, cache_dir=args.cache_dir, args=args
     )
+
+    if model.base_model_prefix not in SUPPORTED_MODELS:
+        raise NotImplementedError(f'Model not supporting {args.model_type}, choose one of {SUPPORTED_MODELS}')
+    args.base_model = model.base_model_prefix
+
     model.to(args.device)
     for key, val in loading_info.items():
         logger.info(f'{key}: {val}')
@@ -69,12 +67,11 @@ def main():
 
     # load datasets and loaders for eval
     dataset = datasets.load_from_disk(args.dataset_path)
-    if args.model_type == 'longformer':
+    if args.base_model == 'longformer':
         collator = LongformerCollator(tokenizer=tokenizer, device=args.device)
         max_doc_len = 4096
     else:
-        # TODO:main implement roberta
-        collator = LongformerCollator(tokenizer=tokenizer, device=args.device)
+        collator = SegmentCollator(tokenizer=tokenizer, device=args.device, max_segment_len=args.max_segment_len)
         max_doc_len = None
 
     eval_dataloader = DynamicBatchSampler(
@@ -88,7 +85,7 @@ def main():
 
     # Training
     if args.do_train:
-        train_batches_path = f'{args.dataset_path}_batches_{args.model_type}_{args.max_tokens_in_batch}'
+        train_batches_path = f'{args.dataset_path}_batches_{args.base_model}_{args.max_tokens_in_batch}'
         try:
             logger.info(f'Reading Train batches from {train_batches_path}')
             train_batches = datasets.load_from_disk(train_batches_path)

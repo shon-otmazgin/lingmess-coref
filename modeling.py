@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import Module, Linear, LayerNorm, Dropout
-from transformers import BertPreTrainedModel, LongformerModel, RobertaModel, BertModel
+from transformers import BertPreTrainedModel, AutoModel, AutoConfig, LongformerModel, LongformerConfig
 from transformers.activations import ACT2FN
 
 from consts import CATEGORIES, STOPWORDS
@@ -42,7 +42,11 @@ class LingMessCoref(BertPreTrainedModel):
         self.num_cats = len(CATEGORIES) + 1                 # +1 for ALL
         self.all_cats_size = self.ffnn_size * self.num_cats
 
-        self.longformer = LongformerModel(config)
+        # this is how huggingface loading the class model and setting the name of the variable.
+        base_model = AutoModel.from_config(config)
+        LingMessCoref.base_model_prefix = base_model.base_model_prefix
+        LingMessCoref.config_class = base_model.config_class
+        setattr(self, self.base_model_prefix, base_model)
 
         self.start_mention_mlp = FullyConnectedLayer(config, self.hidden_size, self.ffnn_size, args.dropout_prob)
         self.end_mention_mlp = FullyConnectedLayer(config, self.hidden_size, self.ffnn_size, args.dropout_prob)
@@ -284,7 +288,7 @@ class LingMessCoref(BertPreTrainedModel):
         attention_mask = batch['attention_mask']
 
         if 'leftovers' not in batch:
-            outputs = self.longformer(input_ids, attention_mask=attention_mask)
+            outputs = self.base_model(input_ids, attention_mask=attention_mask)
             sequence_output = outputs.last_hidden_state
         else:
             pass
