@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 
 from datasets import Dataset, DatasetDict
+from tqdm import tqdm
 
 import util
 import consts
