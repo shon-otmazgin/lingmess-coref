@@ -77,17 +77,7 @@ python run.py \
 ```
 The predicted clusters located in `PATH_TO_JSONLINES_FILE.output`
 
-Replicate Evaluation on `OntoNotes` test set with `Longformer`
-```
-python run.py \
-       --output_dir=evaluation \
-       --overwrite_output_dir \
-       --model_name_or_path=shon711/lingmess-longformer \
-       --test_file=data/test.english.jsonlines \
-       --eval_split=test \
-       --max_tokens_in_batch=15000 \
-       --device=cuda:0
-```
+To Replicate Evaluation on `OntoNotes`, set `--test_file=data/test.english.jsonlines` (OntoNotes test set)
 
 ## Training
 Currently the implementation supports `['longformer', 'roberta', 'bert']` transformers, but it should be easy to use any other transformer.
