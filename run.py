@@ -4,7 +4,7 @@ import shutil
 
 import datasets
 import torch
-from transformers import AutoConfig, AutoTokenizer, LongformerConfig, RobertaConfig, BertConfig
+from transformers import AutoConfig, AutoTokenizer, LongformerConfig, RobertaConfig
 
 from create_batches import create_batches
 from modeling import LingMessCoref
@@ -12,7 +12,7 @@ from training import train
 from eval import Evaluator
 from util import set_seed, save_all
 from cli import parse_args
-from collate import LongformerCollator, DynamicBatchSampler, BertLikeCollator
+from collate import LongformerCollator, DynamicBatchSampler
 import wandb
 
 # Setup logging
@@ -48,15 +48,12 @@ def main():
     config = AutoConfig.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir, use_fast=False)
 
-    args.model_type = args.model_type.lower()
     if args.model_type == 'longformer':
         LingMessCoref.config_class = LongformerConfig
     elif args.model_type == 'roberta':
         LingMessCoref.config_class = RobertaConfig
-    elif args.model_type == 'bert':
-        LingMessCoref.config_class = BertConfig
     else:
-        raise NotImplementedError(f'model_type {args.model_type} not supported. choose one of bert/roberta/longformer')
+        raise NotImplementedError(f'Model not supporting {args.model_type}, choose "longformer" or "roberta"')
 
     LingMessCoref.base_model_prefix = args.model_type
     model, loading_info = LingMessCoref.from_pretrained(
@@ -76,13 +73,14 @@ def main():
         collator = LongformerCollator(tokenizer=tokenizer, device=args.device)
         max_doc_len = 4096
     else:
-        collator = BertLikeCollator(tokenizer=tokenizer, device=args.device, max_segment_len=args.max_segment_len)
+        # TODO:main implement roberta
+        collator = LongformerCollator(tokenizer=tokenizer, device=args.device)
         max_doc_len = None
 
     eval_dataloader = DynamicBatchSampler(
-        dataset[args.split_to_eval],
+        dataset[args.eval_split],
         collator=collator,
-        max_tokens_in_batch=args.max_tokens_in_batch,
+        max_tokens=args.max_tokens_in_batch,
         max_segment_len=args.max_segment_len,
         max_doc_len=max_doc_len
     )
@@ -100,7 +98,7 @@ def main():
             train_sampler = DynamicBatchSampler(
                 train_dataset['train'],
                 collator=collator,
-                max_tokens_in_batch=args.max_tokens_in_batch,
+                max_tokens=args.max_tokens_in_batch,
                 max_segment_len=args.max_segment_len,
                 max_doc_len=max_doc_len
             )

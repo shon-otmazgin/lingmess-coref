@@ -37,7 +37,7 @@ def parse_args():
     )
 
     parser.add_argument("--do_train", action="store_true", help="Whether to run training.")
-    parser.add_argument("--split_to_eval", type=str, required=True, default='dev')
+    parser.add_argument("--eval_split", type=str, required=True)
 
     parser.add_argument("--learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--head_learning_rate", default=3e-4, type=float, help="The initial learning rate for Adam.")
