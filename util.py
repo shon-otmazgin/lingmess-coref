@@ -24,18 +24,29 @@ def read_jsonlines(file):
 
 def to_dataframe(file_path):
     df = pd.read_json(file_path, lines=True)
-    assert 'sentences' in df.columns
 
-    if 'doc_key' not in df.columns:
-        df['doc_key'] = [uuid.uuid4().bytes for _ in range(len(df.index))]
+    if 'tokens' in df.columns:
+        pass
+    elif 'sentences' in df.columns:
+        df['tokens'] = df['sentences'].apply(lambda x: flatten(x))
+    elif 'text' in df.columns:
+        # TODO: run spacy
+        pass
+    else:
+        raise NotImplementedError(f'The jsonlines must include tokens/text/sentences attribute')
 
-    df['tokens'] = df['sentences'].apply(lambda x: flatten(x))
     if 'speakers' in df.columns:
         df['speakers'] = df['speakers'].apply(lambda x: flatten(x))
     else:
         df['speakers'] = df['tokens'].apply(lambda x: [None] * len(x))
 
-    df = df[['doc_key', 'tokens', 'speakers', 'clusters']]
+    if 'doc_key' not in df.columns:
+        df['doc_key'] = [uuid.uuid4().hex for _ in range(len(df.index))]
+
+    if 'clusters' in df.columns:
+        df = df[['doc_key', 'tokens', 'speakers', 'clusters']]
+    else:
+        df = df[['doc_key', 'tokens', 'speakers']]
 
     df = df.dropna()
     df = df.reset_index(drop=True)
@@ -62,7 +73,7 @@ def save_all(model, tokenizer, output_dir):
 
 
 def extract_clusters(gold_clusters):
-    gold_clusters = [tuple(tuple(m) for m in gc if NULL_ID_FOR_COREF not in m) for gc in gold_clusters]
+    gold_clusters = [tuple(tuple(m) for m in cluster if NULL_ID_FOR_COREF not in m) for cluster in gold_clusters ]
     gold_clusters = [cluster for cluster in gold_clusters if len(cluster) > 0]
     return gold_clusters
 

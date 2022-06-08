@@ -44,6 +44,8 @@ def _tokenize(tokenizer, words, clusters, speakers):
 
 
 def encode(example, tokenizer):
+    if 'clusters' not in example:
+        example['clusters'] = []
     encoded_example = _tokenize(tokenizer, example['tokens'], example['clusters'], example['speakers'])
 
     gold_clusters = encoded_example['gold_clusters']
