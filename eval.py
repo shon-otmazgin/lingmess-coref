@@ -1,8 +1,5 @@
-import json
 import os
 import logging
-from collections import OrderedDict
-from data.conll import evaluate_conll
 import numpy as np
 import torch
 
@@ -11,7 +8,7 @@ from metrics import CorefEvaluator, MentionEvaluator
 from util import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, extract_clusters_for_decode
 from tqdm import tqdm
 import time
-import wandb
+
 logger = logging.getLogger(__name__)
 
 

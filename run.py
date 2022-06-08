@@ -42,9 +42,6 @@ def main():
     args.n_gpu = 1
     set_seed(args)
 
-    # TODO: do something with the cache dir
-    args.cache_dir = '~/.cache'
-
     config = AutoConfig.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, use_fast=True,
                                               add_prefix_space=True, cache_dir=args.cache_dir)

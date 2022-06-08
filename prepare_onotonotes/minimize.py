@@ -9,6 +9,7 @@ import collections
 
 import conll
 
+# TODO: need to fix it
 sys.path.append('../')
 import util
 

@@ -64,6 +64,7 @@ def parse_args():
     parser.add_argument("--top_lambda", type=float, default=0.4)
 
     parser.add_argument("--experiment_name", type=str, default=None)
+    parser.add_argument("--cache_dir", type=str, default='cache')
 
     parser.add_argument("--max_segment_len", type=int, default=512)
     parser.add_argument("--max_tokens_in_batch", type=int, default=5000)
