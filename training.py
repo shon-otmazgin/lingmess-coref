@@ -83,7 +83,7 @@ def train(args, train_batches, model, tokenizer, evaluator):
                 logging_loss = tr_loss
 
             # Evaluation
-            if args.do_eval and global_step % args.eval_steps == 0:
+            if global_step % args.eval_steps == 0:
                 results = evaluator.evaluate(model, prefix=f'step_{global_step}', official=False)
                 wandb.log(results, step=global_step)
 

@@ -1,13 +1,13 @@
-import math
 import numpy as np
 import torch
 from torch import nn
-from torch.nn import Module, Linear, LayerNorm, Dropout, init
-from transformers import BertPreTrainedModel, LongformerModel, RobertaModel, AutoModel
+from torch.nn import Module, Linear, LayerNorm, Dropout
+from transformers import BertPreTrainedModel, LongformerModel, RobertaModel, BertModel
 from transformers.activations import ACT2FN
 
 from consts import CATEGORIES, STOPWORDS
-from util import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, mask_tensor, is_pronoun, get_category_id
+from util import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, \
+    mask_tensor, is_pronoun, get_category_id
 
 
 class FullyConnectedLayer(Module):
@@ -42,7 +42,15 @@ class LingMessCoref(BertPreTrainedModel):
         self.num_cats = len(CATEGORIES) + 1                 # +1 for ALL
         self.all_cats_size = self.ffnn_size * self.num_cats
 
-        self.longformer = LongformerModel(config)
+        if self.base_model_prefix == 'longformer':
+            self.longformer = LongformerModel(config)
+            self.transformer = self.longformer
+        elif self.base_model_prefix == 'roberta':
+            self.roberta = RobertaModel(config)
+            self.transformer = self.roberta
+        else:
+            self.bert = BertModel(config)
+            self.transformer = self.bert
 
         self.start_mention_mlp = FullyConnectedLayer(config, self.hidden_size, self.ffnn_size, args.dropout_prob)
         self.end_mention_mlp = FullyConnectedLayer(config, self.hidden_size, self.ffnn_size, args.dropout_prob)
@@ -279,14 +287,37 @@ class LingMessCoref(BertPreTrainedModel):
 
         return all_labels
 
-    def forward(self, batch, gold_clusters=None, return_all_outputs=False):
-        subtoken_map = batch['subtoken_map']
-        texts = batch['text']
+    def forward_transformer(self, batch):
         input_ids = batch['input_ids']
         attention_mask = batch['attention_mask']
 
-        outputs = self.longformer(input_ids, attention_mask=attention_mask)
-        sequence_output = outputs.last_hidden_state
+        if 'leftovers' not in batch:
+            outputs = self.transformer(input_ids, attention_mask=attention_mask)
+            sequence_output = outputs.last_hidden_state
+        else:
+            docs, segments, segment_len = input_ids.size()
+            input_ids, attention_mask = input_ids.view(-1, segment_len), attention_mask.view(-1, segment_len)
+
+            outputs = self.transformer(input_ids, attention_mask=attention_mask)
+            sequence_output = outputs.last_hidden_state
+
+            attention_mask = attention_mask.view((docs, segments * segment_len))           # [docs, seq_len]
+            sequence_output = sequence_output.view((docs, segments * segment_len, -1))     # [docs, seq_len, dim]
+
+            leftovers_ids, leftovers_mask = batch['leftovers']['input_ids'], batch['leftovers']['attention_mask']
+            if len(leftovers_ids) > 0:
+                res_outputs = self.transformer(leftovers_ids, attention_mask=leftovers_mask)
+                res_sequence_output = res_outputs.last_hidden_state
+
+                attention_mask = torch.cat([attention_mask, leftovers_mask], dim=1)
+                sequence_output = torch.cat([sequence_output, res_sequence_output], dim=1)
+
+        return sequence_output, attention_mask
+
+    def forward(self, batch, gold_clusters=None, return_all_outputs=False):
+        texts, subtoken_map = batch['text'], batch['subtoken_map']
+
+        sequence_output, attention_mask = self.forward_transformer(batch)
 
         # Compute representations
         start_mention_reps = self.start_mention_mlp(sequence_output)
