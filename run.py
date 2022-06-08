@@ -46,7 +46,8 @@ def main():
     args.cache_dir = '~/.cache'
 
     config = AutoConfig.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir)
-    tokenizer = AutoTokenizer.from_pretrained(config._name_or_path, add_prefix_space=True, cache_dir=args.cache_dir)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, use_fast=True,
+                                              add_prefix_space=True, cache_dir=args.cache_dir)
 
     model, loading_info = LingMessCoref.from_pretrained(
         args.model_name_or_path, output_loading_info=True,
