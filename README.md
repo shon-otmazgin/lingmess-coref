@@ -31,7 +31,7 @@ Note: Python 2.7 is for OntoNotes dataset preprocess.
 
 Download [OntoNotes 5.0](https://catalog.ldc.upenn.edu/LDC2013T19) corpus (registration is required).
 
-Important: `ontonotes-release-5.0_LDC2013T19.tgz` must be under `data` folder.
+Important: `ontonotes-release-5.0_LDC2013T19.tgz` must be under `prepare_onotonotes` folder.
 
 Setup (~45 min):
 ```
