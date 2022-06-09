@@ -72,7 +72,7 @@ Inference on you own dataset
 python run.py \
        --output_dir=lingmess \
        --overwrite_output_dir \
-       --model_name_or_path=biu-nlp/lingmess-longformer \
+       --model_name_or_path=biu-nlp/lingmess-coref \    # longformer version on HF.
        --test_file=PATH_TO_FILE_TO_PREDICT.jsonlines \
        --eval_split=test \
        --max_tokens_in_batch=15000 \
