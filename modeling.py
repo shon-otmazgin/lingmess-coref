@@ -69,6 +69,7 @@ class LingMessCoref(BertPreTrainedModel):
         self.all_cats_antecedent_s2e_bias = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size)))
         self.all_cats_antecedent_e2s_bias = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size)))
 
+        self.reset_parameters()
         self.init_weights()
 
     def reset_parameters(self) -> None:
