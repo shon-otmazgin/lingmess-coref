@@ -70,7 +70,7 @@ Note: If you want to train the model on your own dataset, please provide `cluste
 Inference on you own dataset
 ```
 python run.py \
-       --output_dir=evaluation \
+       --output_dir=lingmess \
        --overwrite_output_dir \
        --model_name_or_path=biu-nlp/lingmess-longformer \
        --test_file=FILE_TO_PREDICT.jsonlines \
