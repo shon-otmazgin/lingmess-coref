@@ -5,8 +5,8 @@ import torch
 
 from consts import CATEGORIES
 from metrics import CorefEvaluator, MentionEvaluator
-from util import create_clusters, create_mention_to_antecedent, update_metrics, output_evaluation_metrics, \
-    align_clusters, read_jsonlines, write_prediction_to_jsonlines
+from util import create_clusters, create_mention_to_antecedent, update_metrics, \
+    output_evaluation_metrics, write_prediction_to_jsonlines
 from tqdm import tqdm
 import time
 
@@ -75,7 +75,7 @@ class Evaluator:
             )
 
         write_prediction_to_jsonlines(
-            self.args, doc_to_tokens, doc_to_prediction, doc_to_subtoken_map, doc_to_new_word_map
+            self.args, doc_to_prediction, doc_to_tokens. doc_to_subtoken_map, doc_to_new_word_map
         )
 
         logger.info(f'Inference time: {time.time() - start_time:.6f} seconds')

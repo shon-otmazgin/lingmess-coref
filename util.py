@@ -82,7 +82,7 @@ def read_jsonlines(file):
     return docs
 
 
-def write_prediction_to_jsonlines(args, doc_to_tokens, doc_to_prediction, doc_to_subtoken_map, doc_to_new_word_map):
+def write_prediction_to_jsonlines(args, doc_to_prediction, doc_to_tokens, doc_to_subtoken_map, doc_to_new_word_map):
     eval_file = args.dataset_files[args.eval_split]
     output_eval_file = os.path.join(args.output_dir, Path(eval_file).stem + '.output.jsonlines')
     docs = read_jsonlines(file=eval_file)
