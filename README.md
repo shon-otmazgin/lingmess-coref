@@ -61,6 +61,8 @@ option #2:
     {"doc_key": "DOC_KEY_2", "tokens": ["this", "is", "document", "number", "1", ",", "it", "'s", "text", "is", "tokenized"],
 ```
 
+Note: Optional - speaker information by token.
+
 Note: If you want to train the model on your own dataset, please provide `clusters` information as a span start/end indices of the `tokens` attribute.
 
 ## Inference
