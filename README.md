@@ -91,9 +91,9 @@ python run.py \
        --output_dir=lingmess-longformer \
        --overwrite_output_dir \
        --model_name_or_path=allenai/longformer-large-4096 \
-       --train_file=data/train.english.jsonlines \
-       --dev_file=data/dev.english.jsonlines \
-       --test_file=data/test.english.jsonlines \
+       --train_file=prepare_onotonotes/train.english.jsonlines \
+       --dev_file=prepare_onotonotes/dev.english.jsonlines \
+       --test_file=prepare_onotonotes/test.english.jsonlines \
        --max_tokens_in_batch=5000 \
        --do_train \
        --eval_split=dev \
