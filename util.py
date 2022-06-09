@@ -55,6 +55,8 @@ def output_evaluation_metrics(metrics_dict, output_dir, prefix, official):
     #         official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
     #         logger.info('Official avg F1: %.2f' % official_f1)
 
+    return results
+
 
 def align_clusters(clusters, subtoken_maps, word_maps):
     new_clusters = []
