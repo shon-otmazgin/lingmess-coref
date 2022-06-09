@@ -80,7 +80,7 @@ python run.py \
 ```
 The predicted clusters located at `FILE_TO_PREDICT.output.jsonlines`
 
-To Replicate Evaluation on `OntoNotes`, set `--test_file=data/test.english.jsonlines` (OntoNotes test set)
+To Replicate Evaluation on `OntoNotes`, set `--test_file` to OntoNotes test file.
 
 ## Training
 Currently the implementation supports `['longformer', 'roberta', 'bert']` transformers, but it should be easy to use any other transformer.
