@@ -1,8 +1,9 @@
 import os
 import logging
-import uuid
 import json
+import spacy
 from pathlib import Path
+from tqdm import tqdm
 import random
 import pandas as pd
 import torch
@@ -11,6 +12,7 @@ from consts import NULL_ID_FOR_COREF, CATEGORIES, STOPWORDS, PRONOUNS_GROUPS
 
 
 logger = logging.getLogger(__name__)
+nlp = None
 
 
 def output_evaluation_metrics(metrics_dict, output_dir, prefix, official):
@@ -98,15 +100,20 @@ def write_prediction_to_jsonlines(args, doc_to_prediction, doc_to_subtoken_map, 
 
 
 def to_dataframe(file_path):
+    global nlp
     df = pd.read_json(file_path, lines=True)
 
     if 'tokens' in df.columns:
         pass
     elif 'sentences' in df.columns:
+        # this is just for ontonotes. please avoid using 'sentences' and use 'text' or 'tokens'
         df['tokens'] = df['sentences'].apply(lambda x: flatten(x))
     elif 'text' in df.columns:
-        # TODO: run spacy
-        pass
+        if nlp is None:
+            nlp = spacy.load("en_core_web_sm", exclude=["tagger", "parser", "lemmatizer", "ner"])
+        texts = df['text'].tolist()
+        logger.info(f'Tokenizing text using Spacy')
+        df['tokens'] = [[tok.text for tok in doc] for doc in tqdm(nlp.pipe(texts), total=len(texts))]
     else:
         raise NotImplementedError(f'The jsonlines must include tokens/text/sentences attribute')
 

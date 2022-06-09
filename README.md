@@ -50,7 +50,7 @@ Custom dataset guidelines:
 2. Each file should be in `jsonlines` format
 3. Each line in the file should include:
    1. `doc_key` (you can use `uuid.uuid4().hex` to generate)
-   2. `text` or `tokens` attribute, if you choose to use `text` we will run `Spacy` tokenizer.
+   2. `text` or `tokens` attribute, if you choose to use `text` we will run [`Spacy`](https://spacy.io/) tokenizer.
 
 option #1:
 ```
