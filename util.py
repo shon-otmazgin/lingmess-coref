@@ -58,7 +58,7 @@ def output_evaluation_metrics(metrics_dict, output_dir, prefix, official):
     return results
 
 
-def align_clusters(clusters, subtoken_maps, word_maps):
+def align_clusters(clusters, subtoken_maps, new_word_maps):
     new_clusters = []
     for cluster in clusters:
         new_cluster = []
@@ -66,7 +66,7 @@ def align_clusters(clusters, subtoken_maps, word_maps):
             start, end = subtoken_maps[start], subtoken_maps[end]
             if start is None or end is None:
                 continue
-            start, end = word_maps[start], word_maps[end]
+            start, end = new_word_maps[start], new_word_maps[end]
             new_cluster.append([start, end])
         new_clusters.append(new_cluster)
     return new_clusters
