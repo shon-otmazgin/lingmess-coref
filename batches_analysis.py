@@ -1,12 +1,15 @@
 import torch
-import datasets
 from transformers import AutoTokenizer
 from tqdm import tqdm
+
+import coref_dataset
 from collate import SegmentCollator, DynamicBatchSampler
 
-
-dataset = datasets.load_from_disk('/home/nlp/shon711/lingmess-coref/data/dataset')
-tokenizer = AutoTokenizer.from_pretrained('roberta-base', cache_dir='cache')
+tokenizer = AutoTokenizer.from_pretrained('bert-base-cased', cache_dir='cache')
+dataset, dataset_files = coref_dataset.create(
+        tokenizer=tokenizer,
+        train_file='prepare_onotonotes/train.english.jsonlines'
+)
 device = torch.device('cpu')
 
 collator = SegmentCollator(tokenizer=tokenizer, device=device, max_segment_len=512)
