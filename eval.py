@@ -40,7 +40,7 @@ class Evaluator:
             doc_keys = batch['doc_key']
             subtoken_map = batch['subtoken_map']
             new_word_map = batch['new_word_map']
-            gold_clusters = None
+            gold_clusters = batch['gold_clusters']
 
             with torch.no_grad():
                 outputs = model(batch, gold_clusters=None, return_all_outputs=True)
