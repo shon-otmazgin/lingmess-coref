@@ -73,12 +73,12 @@ python run.py \
        --output_dir=evaluation \
        --overwrite_output_dir \
        --model_name_or_path=shon711/lingmess-longformer \
-       --test_file=PATH_TO_JSONLINES_FILE \
+       --test_file=FILE_TO_PREDICT.jsonlines \
        --eval_split=test \
        --max_tokens_in_batch=15000 \
        --device=cuda:0
 ```
-The predicted clusters located in `PATH_TO_JSONLINES_FILE.output`
+The predicted clusters located in `FILE_TO_PREDICT.output.jsonlines`
 
 To Replicate Evaluation on `OntoNotes`, set `--test_file=data/test.english.jsonlines` (OntoNotes test set)
 
