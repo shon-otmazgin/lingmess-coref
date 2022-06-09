@@ -23,7 +23,7 @@ class Evaluator:
         # Eval!
         model.eval()
 
-        logger.info(f"***** Running evaluation {prefix} *****")
+        logger.info(f"***** Running Inference {prefix} *****")
         logger.info(f"  Examples number: {len(self.eval_dataloader.dataset)}")
 
         metrics_dict = {'post_pruning': MentionEvaluator(), 'mentions': MentionEvaluator(), 'coref': CorefEvaluator()}

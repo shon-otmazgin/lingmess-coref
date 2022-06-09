@@ -101,7 +101,7 @@ def main():
         logger.info(f"global_step = {global_step}, average loss = {tr_loss}")
 
     # Evaluation
-    results = evaluator.evaluate(model, prefix="final_evaluation", official=True)
+    results = evaluator.evaluate(model, official=True)
 
     return results
 
