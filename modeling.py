@@ -7,7 +7,7 @@ from transformers.activations import ACT2FN
 
 from consts import CATEGORIES, STOPWORDS
 from util import extract_clusters, extract_mentions_to_clusters, \
-    mask_tensor, is_pronoun, get_category_id
+    mask_tensor, get_pronoun_id, get_category_id
 
 
 class FullyConnectedLayer(Module):
@@ -165,16 +165,16 @@ class LingMessCoref(BertPreTrainedModel):
         new_cluster_labels = torch.tensor(new_cluster_labels, device=self.device)
         return new_cluster_labels
 
-    def _get_categories_labels(self, texts, subtoken_map, span_starts, span_ends):
+    def _get_categories_labels(self, tokens, subtoken_map, new_token_map, span_starts, span_ends):
         batch_size, max_k = span_starts.size()
 
         spans = []
         for b, (starts, ends) in enumerate(zip(span_starts.cpu().tolist(), span_ends.cpu().tolist())):
             doc_spans = []
             for start, end in zip(starts, ends):
-                word_indices = sorted(set(subtoken_map[b][start:end + 1]) - {None})
-                span = {texts[b][idx].lower() for idx in word_indices}
-                pronoun_id = is_pronoun(span)
+                token_indices = [new_token_map[b][idx] for idx in set(subtoken_map[b][start:end + 1]) - {None}]
+                span = {tokens[b][idx].lower() for idx in token_indices if idx is not None}
+                pronoun_id = get_pronoun_id(span)
                 doc_spans.append((span - STOPWORDS, pronoun_id))
             spans.append(doc_spans)
 
@@ -311,7 +311,7 @@ class LingMessCoref(BertPreTrainedModel):
         return sequence_output, attention_mask
 
     def forward(self, batch, gold_clusters=None, return_all_outputs=False):
-        texts, subtoken_map = batch['text'], batch['subtoken_map']
+        tokens, subtoken_map, new_token_map = batch['tokens'], batch['subtoken_map'], batch['new_token_map']
 
         sequence_output, attention_mask = self.forward_transformer(batch)
 
@@ -326,7 +326,7 @@ class LingMessCoref(BertPreTrainedModel):
         mention_start_ids, mention_end_ids, span_mask, topk_mention_logits = self._prune_topk_mentions(mention_logits, attention_mask)
 
         categories_labels, categories_masks = self._get_categories_labels(
-            texts, subtoken_map, mention_start_ids, mention_end_ids
+            tokens, subtoken_map, new_token_map, mention_start_ids, mention_end_ids
         )
 
         batch_size, max_k = mention_start_ids.size()

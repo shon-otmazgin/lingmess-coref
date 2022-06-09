@@ -27,6 +27,7 @@ class Evaluator:
         logger.info(f"  Examples number: {len(self.eval_dataloader.dataset)}")
 
         metrics_dict = {'post_pruning': MentionEvaluator(), 'mentions': MentionEvaluator(), 'coref': CorefEvaluator()}
+        doc_to_tokens = {}
         doc_to_subtoken_map = {}
         doc_to_new_word_map = {}
         doc_to_prediction = {}
@@ -38,8 +39,9 @@ class Evaluator:
         start_time = time.time()
         for idx, batch in enumerate(data_iterator):
             doc_keys = batch['doc_key']
+            tokens = batch['tokens']
             subtoken_map = batch['subtoken_map']
-            new_word_map = batch['new_word_map']
+            new_token_map = batch['new_token_map']
             gold_clusters = batch['gold_clusters']
 
             with torch.no_grad():
@@ -56,8 +58,9 @@ class Evaluator:
                 predicted_clusters = create_clusters(doc_mention_to_antecedent)
 
                 doc_to_prediction[doc_key] = predicted_clusters
+                doc_to_tokens[doc_key] = tokens[i]
                 doc_to_subtoken_map[doc_key] = subtoken_map[i]
-                doc_to_new_word_map[doc_key] = new_word_map[i]
+                doc_to_new_word_map[doc_key] = new_token_map[i]
 
                 if gold_clusters is not None:
                     evaluation = True
@@ -69,7 +72,9 @@ class Evaluator:
                 metrics_dict=metrics_dict, output_dir=self.output_dir, prefix=prefix, official=official
             )
 
-        write_prediction_to_jsonlines(self.args, doc_to_prediction, doc_to_subtoken_map, doc_to_new_word_map)
+        write_prediction_to_jsonlines(
+            self.args, doc_to_tokens, doc_to_prediction, doc_to_subtoken_map, doc_to_new_word_map
+        )
 
         logger.info(f'Inference time: {time.time() - start_time:.6f} seconds')
         return results

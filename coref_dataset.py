@@ -10,36 +10,36 @@ import consts
 logger = logging.getLogger(__name__)
 
 
-def _tokenize(tokenizer, words, clusters, speakers):
-    word_map = []
-    new_word_map = []
-    text = []
+def _tokenize(tokenizer, tokens, clusters, speakers):
+    token_to_new_token_map = []
+    new_token_map = []
+    new_tokens = []
     last_speaker = None
 
-    for idx, (word, speaker) in enumerate(zip(words, speakers)):
+    for idx, (token, speaker) in enumerate(zip(tokens, speakers)):
         if last_speaker != speaker:
-            text += [consts.SPEAKER_START, speaker, consts.SPEAKER_END]
-            new_word_map += [None, None, None]
+            new_tokens += [consts.SPEAKER_START, speaker, consts.SPEAKER_END]
+            new_token_map += [None, None, None]
             last_speaker = speaker
-        word_map.append(len(text))
-        new_word_map.append(idx)
-        text.append(word)
+        token_to_new_token_map.append(len(new_tokens))
+        new_token_map.append(idx)
+        new_tokens.append(token)
 
     for cluster in clusters:
         for start, end in cluster:
-            assert words[start:end + 1] == text[word_map[start]:word_map[end] + 1]
+            assert tokens[start:end + 1] == new_tokens[token_to_new_token_map[start]:token_to_new_token_map[end] + 1]
 
-    encoded_text = tokenizer(text, add_special_tokens=True, is_split_into_words=True)
+    encoded_text = tokenizer(new_tokens, add_special_tokens=True, is_split_into_words=True)
 
-    new_clusters = [[(encoded_text.word_to_tokens(word_map[start]).start,
-                      encoded_text.word_to_tokens(word_map[end]).end - 1)
+    new_clusters = [[(encoded_text.word_to_tokens(token_to_new_token_map[start]).start,
+                      encoded_text.word_to_tokens(token_to_new_token_map[end]).end - 1)
                      for start, end in cluster] for cluster in clusters]
 
-    return {'text': text,
+    return {'tokens': tokens,
             'input_ids': encoded_text['input_ids'],
             'gold_clusters': new_clusters,
             'subtoken_map': encoded_text.word_ids(),
-            'new_word_map': new_word_map
+            'new_token_map': new_token_map
             }
 
 
@@ -71,7 +71,7 @@ def create(tokenizer, train_file=None, dev_file=None, test_file=None):
 
     dataset = DatasetDict(dataset_dict)
     dataset = dataset.map(encode, batched=False, fn_kwargs={'tokenizer': tokenizer})
-    dataset = dataset.remove_columns(column_names=['tokens', 'speakers', 'clusters'])
+    dataset = dataset.remove_columns(column_names=['speakers', 'clusters'])
 
     return dataset, dataset_files
 

@@ -78,7 +78,7 @@ python run.py \
        --max_tokens_in_batch=15000 \
        --device=cuda:0
 ```
-The predicted clusters located at `FILE_TO_PREDICT.output.jsonlines`
+The predicted `clusters` corresponded to `tokens` located at `FILE_TO_PREDICT.output.jsonlines` 
 
 To Replicate Evaluation on `OntoNotes`, set `--test_file` to OntoNotes test file.
 

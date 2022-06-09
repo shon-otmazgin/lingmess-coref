@@ -80,7 +80,7 @@ def read_jsonlines(file):
     return docs
 
 
-def write_prediction_to_jsonlines(args, doc_to_prediction, doc_to_subtoken_map, doc_to_new_word_map):
+def write_prediction_to_jsonlines(args, doc_to_tokens, doc_to_prediction, doc_to_subtoken_map, doc_to_new_word_map):
     eval_file = args.dataset_files[args.eval_split]
     output_eval_file = os.path.join(args.output_dir, Path(eval_file).stem + '.output.jsonlines')
     docs = read_jsonlines(file=eval_file)
@@ -90,10 +90,12 @@ def write_prediction_to_jsonlines(args, doc_to_prediction, doc_to_subtoken_map, 
             assert doc_key in doc_to_prediction
 
             predicted_clusters = doc_to_prediction[doc_key]
+            tokens = doc_to_tokens[doc_key]
             subtoken_map = doc_to_subtoken_map[doc_key]
             new_word_map = doc_to_new_word_map[doc_key]
 
             new_predicted_clusters = align_clusters(predicted_clusters, subtoken_map, new_word_map)
+            doc['tokens'] = tokens
             doc['clusters'] = new_predicted_clusters
 
             writer.write(json.dumps(doc) + "\n")
@@ -112,7 +114,7 @@ def to_dataframe(file_path):
         if nlp is None:
             nlp = spacy.load("en_core_web_sm", exclude=["tagger", "parser", "lemmatizer", "ner"])
         texts = df['text'].tolist()
-        logger.info(f'Tokenizing text using Spacy')
+        logger.info(f'Tokenize text using Spacy...')
         df['tokens'] = [[tok.text for tok in doc] for doc in tqdm(nlp.pipe(texts), total=len(texts))]
     else:
         raise NotImplementedError(f'The jsonlines must include tokens/text/sentences attribute')
@@ -246,38 +248,12 @@ def mask_tensor(t, mask):
     return t
 
 
-def is_pronoun(span):
+def get_pronoun_id(span):
     if len(span) == 1:
         span = list(span)
         if span[0] in PRONOUNS_GROUPS:
             return PRONOUNS_GROUPS[span[0]]
     return -1
-
-
-def get_head_id(mention, antecedent):
-    mention_is_pronoun = is_pronoun(mention)
-    antecedent_is_pronoun = is_pronoun(antecedent)
-
-    if mention_is_pronoun > -1 and antecedent_is_pronoun > -1:
-        if mention_is_pronoun == antecedent_is_pronoun:
-            return CATEGORIES['pron-pron-comp']
-        else:
-            return CATEGORIES['pron-pron-no-comp']
-
-    if mention_is_pronoun > -1 or antecedent_is_pronoun > -1:
-        return CATEGORIES['pron-ent']
-
-    mention = set(mention) - STOPWORDS
-    antecedent = set(antecedent) - STOPWORDS
-
-    if mention == antecedent:
-        return CATEGORIES['match']
-
-    union = mention.union(antecedent)
-    if len(union) == max(len(mention), len(antecedent)):
-        return CATEGORIES['contain']
-
-    return CATEGORIES['other']
 
 
 def get_category_id(mention, antecedent):
