@@ -73,12 +73,12 @@ python run.py \
        --output_dir=lingmess \
        --overwrite_output_dir \
        --model_name_or_path=biu-nlp/lingmess-longformer \
-       --test_file=FILE_TO_PREDICT.jsonlines \
+       --test_file=PATH_TO_FILE_TO_PREDICT.jsonlines \
        --eval_split=test \
        --max_tokens_in_batch=15000 \
        --device=cuda:0
 ```
-The output file  located at `FILE_TO_PREDICT.output.jsonlines` 
+The output file  located at `PATH_TO_FILE_TO_PREDICT.output.jsonlines` 
 
 The output file includes the predicted clusters. They are a list of coreference clusters such as each cluster contains a list of mention offsets `[start, end]` . These offsets correspond to the tokenization in the field tokens.
 
