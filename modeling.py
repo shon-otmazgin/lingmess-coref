@@ -6,7 +6,7 @@ from transformers import BertPreTrainedModel, AutoModel, AutoConfig, LongformerM
 from transformers.activations import ACT2FN
 
 from consts import CATEGORIES, STOPWORDS
-from util import extract_clusters, extract_mentions_to_predicted_clusters_from_clusters, \
+from util import extract_clusters, extract_mentions_to_clusters, \
     mask_tensor, is_pronoun, get_category_id
 
 
@@ -154,7 +154,7 @@ class LingMessCoref(BertPreTrainedModel):
 
         for b, (starts, ends, gold_clusters) in enumerate(zip(span_starts_cpu, span_ends_cpu, all_clusters_cpu)):
             gold_clusters = extract_clusters(gold_clusters)
-            mention_to_gold_clusters = extract_mentions_to_predicted_clusters_from_clusters(gold_clusters)
+            mention_to_gold_clusters = extract_mentions_to_clusters(gold_clusters)
             for i, (start, end) in enumerate(zip(starts, ends)):
                 if (start, end) not in mention_to_gold_clusters:
                     continue
