@@ -247,6 +247,8 @@ class LingMessCoref(BertPreTrainedModel):
         return mention_logits
 
     def _calc_coref_logits(self, start_reps, end_reps):
+        # see discussion: https://discuss.pytorch.org/t/batch-matrix-multiplication-of-3d-tensors/153644/4
+
         batch_size, max_k, _ = start_reps.size()
 
         start_coref_reps = self.all_cats_start_coref_mlp(start_reps)            # [batch_size, max_k, all_cats_size]
