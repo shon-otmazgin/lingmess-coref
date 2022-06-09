@@ -112,7 +112,7 @@ def to_dataframe(file_path):
         df['tokens'] = df['sentences'].apply(lambda x: flatten(x))
     elif 'text' in df.columns:
         if nlp is None:
-            nlp = spacy.load("en_core_web_sm", exclude=["tagger", "parser", "lemmatizer", "ner"])
+            nlp = spacy.load("en_core_web_sm", exclude=["tagger", "parser", "lemmatizer", "ner", "textcat"])
         texts = df['text'].tolist()
         logger.info(f'Tokenize text using Spacy...')
         df['tokens'] = [[tok.text for tok in doc] for doc in tqdm(nlp.pipe(texts), total=len(texts))]
