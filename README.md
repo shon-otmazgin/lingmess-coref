@@ -78,7 +78,10 @@ python run.py \
        --max_tokens_in_batch=15000 \
        --device=cuda:0
 ```
-The predicted `clusters` corresponded to `tokens` located at `FILE_TO_PREDICT.output.jsonlines` 
+The output file  located at `FILE_TO_PREDICT.output.jsonlines` 
+
+The output file includes the predicted clusters. They are a list of coreference clusters such as each cluster contains a list of mention offsets `[start, end]` . These offsets correspond to the tokenization in the field tokens.
+
 
 To Replicate Evaluation on `OntoNotes`, set `--test_file` to OntoNotes test file.
 
