@@ -48,9 +48,9 @@ Our implementation supports also custom dataset, both for training and inference
 Custom dataset guidelines:
 1. Each dataset split (train/dev/test) should be in separate file.
 2. Each file should be in `jsonlines` format
-3. Each line in the file should include:
+3. Each line in the file must include these fields:
    1. `doc_key` (you can use `uuid.uuid4().hex` to generate)
-   2. `text` or `tokens` attribute, if you choose to use `text` we will run [`Spacy`](https://spacy.io/) tokenizer.
+   2. `text` or `tokens` field, if you choose to use `text` we will run [`Spacy`](https://spacy.io/) tokenizer.
 
 option #1:
 ```
@@ -80,7 +80,7 @@ python run.py \
 ```
 The output file  located at `PATH_TO_FILE_TO_PREDICT.output.jsonlines` 
 
-The output file includes the predicted clusters. They are a list of coreference clusters such as each cluster contains a list of mention offsets `[start, end]` . These offsets correspond to the tokenization in the field tokens.
+The output file includes the predicted clusters. They are a list of coreference clusters such as each cluster contains a list of mention offsets `[start, end]` . These offsets correspond to the tokenization in the field `tokens`.
 
 
 To Replicate Evaluation on `OntoNotes`, set `--test_file` to OntoNotes test file.
