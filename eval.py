@@ -35,7 +35,7 @@ class Evaluator:
                            for cat_name, cat_id in CATEGORIES.items()}
 
         evaluation = False
-        data_iterator = tqdm(self.eval_dataloader, desc="inference", total=len(self.eval_dataloader.dataset))
+        data_iterator = tqdm(self.eval_dataloader, desc="Inference", total=len(self.eval_dataloader.dataset))
         start_time = time.time()
         for idx, batch in enumerate(data_iterator):
             doc_keys = batch['doc_key']
