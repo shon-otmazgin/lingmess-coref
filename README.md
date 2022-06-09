@@ -12,7 +12,7 @@ Credit: Many code parts were taken from [s2e-coref](https://github.com/yuvalkirs
      OR
   
    * [Prepare your own custom dataset](#prepare-your-own-custom-dataset)
-- [Evaluation](#evaluation)
+- [Inference](#inference)
 - [Training](#training)
 - [Citation](#citation)
 
@@ -48,23 +48,24 @@ Our implementation supports also custom dataset, both for training and inference
 Custom dataset guidelines:
 1. Each dataset split (train/dev/test) should be in separate file.
 2. Each file should be in `jsonlines` format
-3. Each line in the file should have either `text` attribute or `tokens` attribute, if you choose to use `text` we will run `Spacy` tokenizer.
+3. Each line in the file should include:
+   1. `doc_key` (you can use `uuid.uuid4().hex` to generate)
+   2. `text` or `tokens` attribute, if you choose to use `text` we will run `Spacy` tokenizer.
 
 option #1:
 ```
-    {"doc_key": "DOC_KEY_1, "text": "this is document number 1, it's text is raw text"},
+    {"doc_key": "DOC_KEY_1", "text": "this is document number 1, it's text is raw text"},
 ```   
 option #2:
 ```
-    {"doc_key": "DOC_KEY_2, "tokens": ["this", "is", "document", "number", "1", ",", "it", "'s", "text", "is", "tokenized"],
-```   
-Recommended: add `doc_key` attribute as well for easy prediction tracking.
+    {"doc_key": "DOC_KEY_2", "tokens": ["this", "is", "document", "number", "1", ",", "it", "'s", "text", "is", "tokenized"],
+```
 
-Note: For training on you own dataset the train file should contain gold clusters information as well.
+Note: If you want to train the model on your own dataset, please provide `clusters` information as a span start/end indices of the `tokens` attribute.
 
-## Evaluation
+## Inference
 
-Evaluate on you own dataset
+Inference on you own dataset
 ```
 python run.py \
        --output_dir=evaluation \

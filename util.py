@@ -2,6 +2,7 @@ import os
 import logging
 import uuid
 import json
+from pathlib import Path
 import random
 import pandas as pd
 import torch
@@ -52,6 +53,21 @@ def output_evaluation_metrics(metrics_dict, output_dir, prefix, official):
     #         official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
     #         logger.info('Official avg F1: %.2f' % official_f1)
 
+
+def align_clusters(clusters, subtoken_maps, word_maps):
+    new_clusters = []
+    for cluster in clusters:
+        new_cluster = []
+        for start, end in cluster:
+            start, end = subtoken_maps[start], subtoken_maps[end]
+            if start is None or end is None:
+                continue
+            start, end = word_maps[start], word_maps[end]
+            new_cluster.append([start, end])
+        new_clusters.append(new_cluster)
+    return new_clusters
+
+
 def flatten(l):
     return [item for sublist in l for item in sublist]
 
@@ -60,6 +76,25 @@ def read_jsonlines(file):
     with open(file, 'r') as f:
         docs = [json.loads(line.strip()) for line in f]
     return docs
+
+
+def write_prediction_to_jsonlines(args, doc_to_prediction, doc_to_subtoken_map, doc_to_new_word_map):
+    eval_file = args.dataset_files[args.eval_split]
+    output_eval_file = os.path.join(args.output_dir, Path(eval_file).stem + '.output.jsonlines')
+    docs = read_jsonlines(file=eval_file)
+    with open(output_eval_file, "w") as writer:
+        for doc in docs:
+            doc_key = doc['doc_key']
+            assert doc_key in doc_to_prediction
+
+            predicted_clusters = doc_to_prediction[doc_key]
+            subtoken_map = doc_to_subtoken_map[doc_key]
+            new_word_map = doc_to_new_word_map[doc_key]
+
+            new_predicted_clusters = align_clusters(predicted_clusters, subtoken_map, new_word_map)
+            doc['clusters'] = new_predicted_clusters
+
+            writer.write(json.dumps(doc) + "\n")
 
 
 def to_dataframe(file_path):
@@ -81,7 +116,7 @@ def to_dataframe(file_path):
         df['speakers'] = df['tokens'].apply(lambda x: [None] * len(x))
 
     if 'doc_key' not in df.columns:
-        df['doc_key'] = [uuid.uuid4().hex for _ in range(len(df.index))]
+        raise NotImplementedError(f'The jsonlines must include doc_key, you can use uuid.uuid4().hex to generate.')
 
     if 'clusters' in df.columns:
         df = df[['doc_key', 'tokens', 'speakers', 'clusters']]

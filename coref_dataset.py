@@ -60,11 +60,11 @@ def create(tokenizer, train_file=None, dev_file=None, test_file=None):
     if train_file is None and dev_file is None and test_file is None:
         raise Exception(f'Provide at least train/dev/test file to create the dataset')
 
-    files = {'train': train_file, 'dev': dev_file, 'test': test_file}
-    logger.info(f'Creating dataset for {files}')
+    dataset_files = {'train': train_file, 'dev': dev_file, 'test': test_file}
+    logger.info(f'Creating dataset for {dataset_files}')
 
     dataset_dict = {}
-    for split, path in files.items():
+    for split, path in dataset_files.items():
         if path is not None:
             df = util.to_dataframe(path)
             dataset_dict[split] = Dataset.from_pandas(df)
@@ -73,7 +73,7 @@ def create(tokenizer, train_file=None, dev_file=None, test_file=None):
     dataset = dataset.map(encode, batched=False, fn_kwargs={'tokenizer': tokenizer})
     dataset = dataset.remove_columns(column_names=['tokens', 'speakers', 'clusters'])
 
-    return dataset
+    return dataset, dataset_files
 
 
 def create_batches(sampler, path_to_save=None):

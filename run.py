@@ -63,10 +63,12 @@ def main():
     logger.info(f'Parameters: {t_params + h_params:.1f}M, Transformer: {t_params:.1f}M, Head: {h_params:.1f}M')
 
     # load datasets
-    dataset = coref_dataset.create(
+    dataset, dataset_files = coref_dataset.create(
         tokenizer=tokenizer,
         train_file=args.train_file, dev_file=args.dev_file, test_file=args.test_file
     )
+    args.dataset_files = dataset_files
+
     if args.base_model == 'longformer':
         collator = LongformerCollator(tokenizer=tokenizer, device=args.device)
         max_doc_len = 4096

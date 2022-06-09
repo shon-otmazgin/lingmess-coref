@@ -5,7 +5,8 @@ import torch
 
 from consts import CATEGORIES
 from metrics import CorefEvaluator, MentionEvaluator
-from util import create_clusters, create_mention_to_antecedent, update_metrics, output_evaluation_metrics
+from util import create_clusters, create_mention_to_antecedent, update_metrics, output_evaluation_metrics, \
+    align_clusters, read_jsonlines, write_prediction_to_jsonlines
 from tqdm import tqdm
 import time
 
@@ -28,7 +29,7 @@ class Evaluator:
         metrics_dict = {'post_pruning': MentionEvaluator(), 'mentions': MentionEvaluator(), 'coref': CorefEvaluator()}
         doc_to_subtoken_map = {}
         doc_to_new_word_map = {}
-        doc_clusters = {}
+        doc_to_prediction = {}
         categories_eval = {cat_name: {'cat_id': cat_id, 'tp': 0, 'fp': 0, 'fn': 0, 'tn': 0}
                            for cat_name, cat_id in CATEGORIES.items()}
 
@@ -39,7 +40,7 @@ class Evaluator:
             doc_keys = batch['doc_key']
             subtoken_map = batch['subtoken_map']
             new_word_map = batch['new_word_map']
-            gold_clusters = batch['gold_clusters']
+            gold_clusters = None
 
             with torch.no_grad():
                 outputs = model(batch, gold_clusters=None, return_all_outputs=True)
@@ -54,7 +55,7 @@ class Evaluator:
                 doc_mention_to_antecedent = mention_to_antecedent[np.nonzero(doc_indices == i)]
                 predicted_clusters = create_clusters(doc_mention_to_antecedent)
 
-                doc_clusters[doc_key] = predicted_clusters
+                doc_to_prediction[doc_key] = predicted_clusters
                 doc_to_subtoken_map[doc_key] = subtoken_map[i]
                 doc_to_new_word_map[doc_key] = new_word_map[i]
 
@@ -68,5 +69,7 @@ class Evaluator:
                 metrics_dict=metrics_dict, output_dir=self.output_dir, prefix=prefix, official=official
             )
 
-        logger.info(f'Total time: {time.time() - start_time:.6f} seconds')
+        write_prediction_to_jsonlines(self.args, doc_to_prediction, doc_to_subtoken_map, doc_to_new_word_map)
+
+        logger.info(f'Inference time: {time.time() - start_time:.6f} seconds')
         return results
