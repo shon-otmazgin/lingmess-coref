@@ -31,11 +31,11 @@ Note: Python 2.7 is for OntoNotes dataset preprocess.
 
 Download [OntoNotes 5.0](https://catalog.ldc.upenn.edu/LDC2013T19) corpus (registration is required).
 
-Important: `ontonotes-release-5.0_LDC2013T19.tgz` must be under `prepare_onotonotes` folder.
+Important: `ontonotes-release-5.0_LDC2013T19.tgz` must be under `prepare_ontonotes` folder.
 
 Setup (~45 min):
 ```
-cd prepare_onotonotes
+cd prepare_ontonotes
 chmod 755 setup.sh
 ./setup.sh
 ``` 
@@ -94,9 +94,9 @@ python run.py \
        --output_dir=lingmess-longformer \
        --overwrite_output_dir \
        --model_name_or_path=allenai/longformer-large-4096 \
-       --train_file=prepare_onotonotes/train.english.jsonlines \
-       --dev_file=prepare_onotonotes/dev.english.jsonlines \
-       --test_file=prepare_onotonotes/test.english.jsonlines \
+       --train_file=prepare_ontonotes/train.english.jsonlines \
+       --dev_file=prepare_ontonotes/dev.english.jsonlines \
+       --test_file=prepare_ontonotes/test.english.jsonlines \
        --max_tokens_in_batch=5000 \
        --do_train \
        --eval_split=dev \

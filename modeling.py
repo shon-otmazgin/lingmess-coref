@@ -1,8 +1,9 @@
+import math
 import numpy as np
 import torch
 from torch import nn
-from torch.nn import Module, Linear, LayerNorm, Dropout
-from transformers import BertPreTrainedModel, AutoModel, AutoConfig, LongformerModel, LongformerConfig
+from torch.nn import Module, Linear, LayerNorm, Dropout, init
+from transformers import BertPreTrainedModel, AutoModel
 from transformers.activations import ACT2FN
 
 from consts import CATEGORIES, STOPWORDS
@@ -55,23 +56,33 @@ class LingMessCoref(BertPreTrainedModel):
         self.mention_end_classifier = Linear(self.ffnn_size, 1)
         self.mention_s2e_classifier = Linear(self.ffnn_size, self.ffnn_size)
 
-        self.start_coref_mlp_cat = nn.ModuleList(
-            [FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
-             for _ in range(self.num_cats)])
-        self.end_coref_mlp_cat = nn.ModuleList(
-            [FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
-             for _ in range(self.num_cats)])
+        self.all_cats_start_coref_mlp = FullyConnectedLayer(config, config.hidden_size, self.all_cats_size, args.dropout_prob)
+        self.all_cats_end_coref_mlp = FullyConnectedLayer(config, config.hidden_size, self.all_cats_size, args.dropout_prob)
 
-        self.antecedent_s2s_classifier_cat = nn.ModuleList(
-            [Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
-        self.antecedent_e2e_classifier_cat = nn.ModuleList(
-            [Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
-        self.antecedent_s2e_classifier_cat = nn.ModuleList(
-            [Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
-        self.antecedent_e2s_classifier_cat = nn.ModuleList(
-            [Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
+        self.all_cats_antecedent_s2s_classifier = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.all_cats_antecedent_e2e_classifier = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.all_cats_antecedent_s2e_classifier = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.all_cats_antecedent_e2s_classifier = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+
+        self.all_cats_antecedent_s2s_bias = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size)))
+        self.all_cats_antecedent_e2e_bias = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size)))
+        self.all_cats_antecedent_s2e_bias = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size)))
+        self.all_cats_antecedent_e2s_bias = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size)))
 
         self.init_weights()
+
+    def reset_parameters(self) -> None:
+        init.kaiming_uniform_(self.all_cats_antecedent_s2s_classifier, a=math.sqrt(5))
+        init.kaiming_uniform_(self.all_cats_antecedent_e2e_classifier, a=math.sqrt(5))
+        init.kaiming_uniform_(self.all_cats_antecedent_s2e_classifier, a=math.sqrt(5))
+        init.kaiming_uniform_(self.all_cats_antecedent_e2s_classifier, a=math.sqrt(5))
+
+        fan_in, _ = init._calculate_fan_in_and_fan_out(self.all_cats_antecedent_s2s_classifier)     # rest the same
+        bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+        init.uniform_(self.all_cats_antecedent_s2s_bias, -bound, bound)
+        init.uniform_(self.all_cats_antecedent_e2e_bias, -bound, bound)
+        init.uniform_(self.all_cats_antecedent_s2e_bias, -bound, bound)
+        init.uniform_(self.all_cats_antecedent_e2s_bias, -bound, bound)
 
     def num_parameters(self) -> tuple:
         def head_filter(x):
@@ -234,40 +245,25 @@ class LingMessCoref(BertPreTrainedModel):
         mention_logits = mask_tensor(mention_logits, mention_mask)  # [batch_size, seq_length, seq_length]
         return mention_logits
 
-    def _calc_cat_coref_logits(self, cat_id, top_k_start_coref_reps, top_k_end_coref_reps):
-        # s2s
-        temp = self.antecedent_s2s_classifier_cat[cat_id](top_k_start_coref_reps)  # [batch_size, max_k, dim]
-        top_k_s2s_coref_logits = torch.matmul(temp,
-                                              top_k_start_coref_reps.permute([0, 2, 1]))  # [batch_size, max_k, max_k]
-
-        # e2e
-        temp = self.antecedent_e2e_classifier_cat[cat_id](top_k_end_coref_reps)  # [batch_size, max_k, dim]
-        top_k_e2e_coref_logits = torch.matmul(temp,
-                                              top_k_end_coref_reps.permute([0, 2, 1]))  # [batch_size, max_k, max_k]
-
-        # s2e
-        temp = self.antecedent_s2e_classifier_cat[cat_id](top_k_start_coref_reps)  # [batch_size, max_k, dim]
-        top_k_s2e_coref_logits = torch.matmul(temp,
-                                              top_k_end_coref_reps.permute([0, 2, 1]))  # [batch_size, max_k, max_k]
-
-        # e2s
-        temp = self.antecedent_e2s_classifier_cat[cat_id](top_k_end_coref_reps)  # [batch_size, max_k, dim]
-        top_k_e2s_coref_logits = torch.matmul(temp,
-                                              top_k_start_coref_reps.permute([0, 2, 1]))  # [batch_size, max_k, max_k]
-
-        # sum all terms
-        coref_logits = top_k_s2e_coref_logits + top_k_e2s_coref_logits + top_k_s2s_coref_logits + top_k_e2e_coref_logits  # [batch_size, max_k, max_k]
-        return coref_logits
-
     def _calc_coref_logits(self, start_reps, end_reps):
-        cat_logit_list = []
-        for cat_id in range(self.num_cats):
-            start_coref_reps = self.start_coref_mlp_cat[cat_id](start_reps)
-            end_coref_reps = self.end_coref_mlp_cat[cat_id](end_reps)
-            cat_coref_logits = self._calc_cat_coref_logits(cat_id, start_coref_reps, end_coref_reps)
+        batch_size, max_k, _ = start_reps.size()
 
-            cat_logit_list.append(cat_coref_logits)
-        return torch.stack(cat_logit_list, dim=1)
+        start_coref_reps = self.all_cats_start_coref_mlp(start_reps)            # [batch_size, max_k, all_cats_size]
+        end_coref_reps = self.all_cats_start_coref_mlp(end_reps)                 # [batch_size, max_k, all_cats_size]
+        start_coref_reps = start_coref_reps.view((batch_size, self.num_cats, max_k, self.ffnn_size))
+        end_coref_reps = end_coref_reps.view((batch_size, self.num_cats, max_k, self.ffnn_size))
+
+        logits = torch.einsum('bnkf, ngf, bnlg -> bnkl', start_coref_reps, self.all_cats_antecedent_s2s_classifier, start_coref_reps) + \
+                 torch.einsum('bnkf, ngf, bnlg -> bnkl', end_coref_reps, self.all_cats_antecedent_e2e_classifier, end_coref_reps) + \
+                 torch.einsum('bnkf, ngf, bnlg -> bnkl', start_coref_reps, self.all_cats_antecedent_s2e_classifier, end_coref_reps) + \
+                 torch.einsum('bnkf, ngf, bnlg -> bnkl', end_coref_reps, self.all_cats_antecedent_e2s_classifier, start_coref_reps)
+
+        bias = torch.einsum('bnkf, nf -> bnk', start_coref_reps, self.all_cats_antecedent_s2s_bias).unsqueeze(-1) + \
+               torch.einsum('bnkf, nf -> bnk', end_coref_reps, self.all_cats_antecedent_e2e_bias).unsqueeze(-1) + \
+               torch.einsum('bnkf, nf -> bnk', start_coref_reps, self.all_cats_antecedent_s2e_bias).unsqueeze(-1) + \
+               torch.einsum('bnkf, nf -> bnk', end_coref_reps, self.all_cats_antecedent_e2s_bias).unsqueeze(-1)
+
+        return logits + bias
 
     def _get_all_labels(self, clusters_labels, categories_masks):
         batch_size, max_k, _ = clusters_labels.size()

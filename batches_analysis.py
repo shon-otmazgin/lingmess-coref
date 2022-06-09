@@ -8,7 +8,7 @@ from collate import SegmentCollator, DynamicBatchSampler
 tokenizer = AutoTokenizer.from_pretrained('bert-base-cased', cache_dir='cache')
 dataset, dataset_files = coref_dataset.create(
         tokenizer=tokenizer,
-        train_file='prepare_onotonotes/train.english.jsonlines'
+        train_file='prepare_ontonotes/train.english.jsonlines'
 )
 device = torch.device('cpu')
 
