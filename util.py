@@ -63,7 +63,11 @@ def align_clusters(clusters, subtoken_maps, new_word_maps):
     for cluster in clusters:
         new_cluster = []
         for start, end in cluster:
-            start, end = subtoken_maps[start], subtoken_maps[end]
+            try:
+                start, end = subtoken_maps[start], subtoken_maps[end]
+            except IndexError:
+                # this is padding index
+                continue
             if start is None or end is None:
                 continue
             start, end = new_word_maps[start], new_word_maps[end]
