@@ -75,7 +75,7 @@ class Evaluator:
             )
 
         write_prediction_to_jsonlines(
-            self.args, doc_to_prediction, doc_to_tokens. doc_to_subtoken_map, doc_to_new_word_map
+            self.args, doc_to_prediction, doc_to_tokens, doc_to_subtoken_map, doc_to_new_word_map
         )
 
         logger.info(f'Inference time: {time.time() - start_time:.6f} seconds')
