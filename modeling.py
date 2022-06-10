@@ -56,26 +56,20 @@ class LingMessCoref(BertPreTrainedModel):
         self.mention_end_classifier = Linear(self.ffnn_size, 1)
         self.mention_s2e_classifier = Linear(self.ffnn_size, self.ffnn_size)
 
-        self.start_coref_mlp_cat = nn.ModuleList(
-            [FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
-             for _ in range(self.num_cats)])
-        self.end_coref_mlp_cat = nn.ModuleList(
-            [FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
-             for _ in range(self.num_cats)])
+        # self.start_coref_mlp_cat = nn.ModuleList(
+        #     [FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
+        #      for _ in range(self.num_cats)])
+        # self.end_coref_mlp_cat = nn.ModuleList(
+        #     [FullyConnectedLayer(config, config.hidden_size, self.ffnn_size, args.dropout_prob)
+        #      for _ in range(self.num_cats)])
 
-        self.antecedent_s2s_classifier_cat = nn.ModuleList(
-            [Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
-        self.antecedent_e2e_classifier_cat = nn.ModuleList(
-            [Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
-        self.antecedent_s2e_classifier_cat = nn.ModuleList(
-            [Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
-        self.antecedent_e2s_classifier_cat = nn.ModuleList(
-            [Linear(self.ffnn_size, self.ffnn_size) for _ in range(self.num_cats)])
+        self.coref_start_all_mlps = FullyConnectedLayer(config, config.hidden_size, self.all_cats_size, args.dropout_prob)
+        self.coref_end_all_mlps = FullyConnectedLayer(config, config.hidden_size, self.all_cats_size, args.dropout_prob)
 
-        self.antecedent_s2s_all_classifiers = None
-        self.antecedent_e2e_all_classifiers = None
-        self.antecedent_s2e_all_classifiers = None
-        self.antecedent_e2s_all_classifiers = None
+        self.antecedent_s2s_all_clfs = Linear(self.ffnn_size, self.all_cats_size)
+        self.antecedent_e2e_all_clfs = Linear(self.ffnn_size, self.all_cats_size)
+        self.antecedent_s2e_all_clfs = Linear(self.ffnn_size, self.all_cats_size)
+        self.antecedent_e2s_all_clfs = Linear(self.ffnn_size, self.all_cats_size)
 
         self.init_weights()
 
@@ -265,15 +259,30 @@ class LingMessCoref(BertPreTrainedModel):
         coref_logits = top_k_s2e_coref_logits + top_k_e2s_coref_logits + top_k_s2s_coref_logits + top_k_e2e_coref_logits  # [batch_size, max_k, max_k]
         return coref_logits
 
-    def _calc_coref_logits(self, start_reps, end_reps):
-        cat_logit_list = []
-        for cat_id in range(self.num_cats):
-            start_coref_reps = self.start_coref_mlp_cat[cat_id](start_reps)
-            end_coref_reps = self.end_coref_mlp_cat[cat_id](end_reps)
-            cat_coref_logits = self._calc_cat_coref_logits(cat_id, start_coref_reps, end_coref_reps)
+    def transpose_for_scores(self, x):
+        new_x_shape = x.size()[:-1] + (self.num_cats, self.ffnn_size)
+        x = x.view(*new_x_shape)
+        return x.permute(0, 2, 1, 3)    # bnkf/bnlg
 
-            cat_logit_list.append(cat_coref_logits)
-        return torch.stack(cat_logit_list, dim=1)
+    def _calc_coref_logits(self, start_reps, end_reps):
+        # see discussion on einsum: https://discuss.pytorch.org/t/batch-matrix-multiplication-of-3d-tensors/153644/4
+
+        all_starts = self.transpose_for_scores(self.coref_start_all_mlps(start_reps))
+        all_ends = self.transpose_for_scores(self.coref_end_all_mlps(end_reps))
+
+        all_s2s_wieghts = self.antecedent_s2s_all_clfs.weight.view(self.num_cats, self.ffnn_size, self.ffnn_size) # ngf
+        all_e2e_wieghts = self.antecedent_e2e_all_clfs.weight.view(self.num_cats, self.ffnn_size, self.ffnn_size) # ngf
+        all_s2e_wieghts = self.antecedent_s2e_all_clfs.weight.view(self.num_cats, self.ffnn_size, self.ffnn_size) # ngf
+        all_e2s_wieghts = self.antecedent_e2s_all_clfs.weight.view(self.num_cats, self.ffnn_size, self.ffnn_size) # ngf
+
+        logits = torch.einsum('bnkf, ngf, bnlg -> bnkl', all_starts, all_s2s_wieghts, all_starts) + \
+                 torch.einsum('bnkf, ngf, bnlg -> bnkl', all_ends,   all_e2e_wieghts, all_ends) + \
+                 torch.einsum('bnkf, ngf, bnlg -> bnkl', all_starts, all_s2e_wieghts, all_ends) + \
+                 torch.einsum('bnkf, ngf, bnlg -> bnkl', all_ends,   all_e2s_wieghts, all_starts)
+
+        # TODO: need to add bias term. (currently struggling)
+
+        return logits
 
     def _get_all_labels(self, clusters_labels, categories_masks):
         batch_size, max_k, _ = clusters_labels.size()
