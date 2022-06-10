@@ -73,8 +73,7 @@ class Evaluator:
         results = {}
         if evaluation:
             results = output_evaluation_metrics(
-                args=self.args, metrics_dict=metrics_dict,
-                output_dir=self.output_dir, prefix=prefix, official=official
+                metrics_dict=metrics_dict, output_dir=self.output_dir, prefix=prefix
             )
 
         return results
