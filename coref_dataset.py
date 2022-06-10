@@ -15,7 +15,6 @@ def _tokenize(tokenizer, tokens, clusters, speakers):
     new_token_map = []
     new_tokens = []
     last_speaker = None
-    logger.info(f'Tokenize documents...')
 
     for idx, (token, speaker) in enumerate(zip(tokens, speakers)):
         if last_speaker != speaker:
@@ -71,6 +70,7 @@ def create(tokenizer, train_file=None, dev_file=None, test_file=None):
             dataset_dict[split] = Dataset.from_pandas(df)
 
     dataset = DatasetDict(dataset_dict)
+    logger.info(f'Tokenize documents...')
     dataset = dataset.map(encode, batched=False, fn_kwargs={'tokenizer': tokenizer})
     dataset = dataset.remove_columns(column_names=['speakers', 'clusters'])
 
