@@ -44,17 +44,6 @@ def output_evaluation_metrics(metrics_dict, output_dir, prefix, official):
                 logger.info(f"  {key} = {value}")
                 writer.write(f"{key} = {value}\n")
 
-    # if official:
-    #     with open(os.path.join(self.args.output_dir, "preds.jsonl"), "w") as f:
-    #         f.write(json.dumps(doc_to_prediction) + '\n')
-    #         f.write(json.dumps(doc_to_subtoken_map) + '\n')
-    #         f.write(json.dumps(doc_to_new_word_map) + '\n')
-    #
-    #     if self.args.conll_path_for_eval is not None:
-    #         conll_results = evaluate_conll(self.args.conll_path_for_eval, doc_to_prediction, doc_to_subtoken_map, doc_to_new_word_map)
-    #         official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
-    #         logger.info('Official avg F1: %.2f' % official_f1)
-
     return results
 
 

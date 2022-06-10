@@ -87,7 +87,7 @@ def train(args, train_batches, model, tokenizer, evaluator):
 
             # Evaluation
             if global_step % args.eval_steps == 0:
-                results = evaluator.evaluate(model, prefix=f'step_{global_step}', official=False)
+                results = evaluator.evaluate(model, prefix=f'step_{global_step}')
                 wandb.log(results, step=global_step)
 
                 f1 = results["f1"]

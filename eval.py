@@ -17,7 +17,7 @@ class Evaluator:
         self.output_dir = args.output_dir
         self.eval_dataloader = eval_dataloader
 
-    def evaluate(self, model, prefix="", official=False):
+    def evaluate(self, model, prefix=""):
         # Eval!
         model.eval()
 

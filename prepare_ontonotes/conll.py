@@ -4,13 +4,22 @@ import json
 import subprocess
 import logging
 from collections import defaultdict
-import util
+import pandas as pd
+from pathlib import Path
 
+
+# Setup logging
 logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                    datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
 
 BEGIN_DOCUMENT_REGEX = re.compile(r"#begin document \((.*)\); part (\d+)")  # First line at each document
 BEGIN_WIKI_DOCUMENT_REGEX = re.compile(r"#begin document (.*)")  # First line at each document
 COREF_RESULTS_REGEX = re.compile(r".*Coreference: Recall: \([0-9.]+ / [0-9.]+\) ([0-9.]+)%\tPrecision: \([0-9.]+ / [0-9.]+\) ([0-9.]+)%\tF1: ([0-9.]+)%.*", re.DOTALL)
+
+
+def flatten(l):
+    return [item for sublist in l for item in sublist]
 
 
 def get_doc_key(doc_id, part):
@@ -24,12 +33,10 @@ def resolve_doc_key(doc_key):
 
 def write_conll_doc(doc, f_obj):
     placeholder = "  -" * 7
-    if 'tokens' in doc:
-        tokens = doc['tokens']
-    elif 'sentences' in doc: # this is only for OntoNotes. use tokens. we will jst flat the sentences.
-        tokens = util.flatten(doc['sentences'])
-    else:
+    if 'tokens' not in doc:
         raise NotImplementedError(f'The document should contain tokens field.')
+
+    tokens = doc['tokens']
     clusters = doc['clusters']
     doc_id, part_id = resolve_doc_key(doc["doc_key"])
 
@@ -65,7 +72,8 @@ def write_conll_doc(doc, f_obj):
 
 
 def official_conll_eval(gold_path, predicted_path, metric, official_stdout=True):
-    cmd = ["reference-coreference-scorers/scorer.pl", metric, gold_path, predicted_path, "none"]
+    cmd = ["/home/nlp/shon711/lingmess-coref/prepare_ontonotes/conll-2012/scorer/v8.01/scorer.pl",
+           metric, gold_path, predicted_path, "none"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     stdout, stderr = process.communicate()
     process.wait()
@@ -92,41 +100,39 @@ def read_jsonlines(file):
     return docs
 
 
-def evaluate_conll(gold_path, predictions, subtoken_maps, word_maps, official_stdout=True):
-    with tempfile.NamedTemporaryFile(delete=True, mode="w") as gold_file, \
-            tempfile.NamedTemporaryFile(delete=True, mode="w") as pred_file:
-        gold_docs = read_jsonlines(gold_path)
-        for doc in gold_docs:
+def evaluate_conll(gold_df, pred_df, official_stdout=True):
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as gold_file, \
+            tempfile.NamedTemporaryFile(delete=False, mode="w") as pred_file:
+        for index in gold_df.index:
             # for gold
+            doc = gold_df.loc[index].to_dict()
             write_conll_doc(doc, gold_file)
 
             # for predictions
             doc_key = doc['doc_key']
-            doc['clusters'] = util.align_clusters(predictions[doc_key], subtoken_maps[doc_key], word_maps[doc_key])
+            doc['clusters'] = pred_df[pred_df['doc_key'] == doc_key]['clusters'].values[0]
             write_conll_doc(doc, pred_file)
-        results = {m: official_conll_eval(gold_file.name, pred_file.name, m, official_stdout) for m in ("muc", "bcub", "ceafe")}
+    results = {m: official_conll_eval(gold_file.name, pred_file.name, m, official_stdout) for m in ("muc", "bcub", "ceafe")}
     return results
 
 
 if __name__ == '__main__':
-    import pandas as pd
+    print(Path.cwd())
+    gold_path = '/home/nlp/shon711/lingmess-coref/prepare_ontonotes/test.english.jsonlines'
+    pred_path = '/home/nlp/shon711/lingmess-coref/evaluation/test.english.output.jsonlines'
 
-    # Setup logging
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                        datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
+    gold_df = pd.read_json(gold_path, lines=True)
+    gold_df['tokens'] = gold_df['sentences'].apply(lambda x: flatten(x))
 
-    gold_path = '/home/nlp/shon711/fastcoref/data/ontonotes/test.english.jsonlines'
-    pred_path = '/home/nlp/shon711/fastcoref/multi_heads_coref/models/test/preds.jsonl'
-    print(gold_path)
-    print(pred_path)
-    df = pd.read_json(pred_path, lines=True).transpose()
-    df.columns = ['predicted_clusters', 'subtoken_map', 'word_map']
-    print(df.shape)
+    pred_df = pd.read_json(pred_path, lines=True)
+    cols = ['doc_key', 'tokens', 'clusters']
+    gold_df = gold_df[cols]
+    pred_df = pred_df[cols]
 
-    doc_to_prediction = df['predicted_clusters'].to_dict()
-    doc_to_subtoken_map = df['subtoken_map'].to_dict()
-    doc_to_word_map = df['word_map'].to_dict()
-    conll_results = evaluate_conll(gold_path, doc_to_prediction, doc_to_subtoken_map, doc_to_word_map)
+    assert gold_df['doc_key'].tolist() == pred_df['doc_key'].tolist()
+    assert all([gold_tokens == pred_tokens
+                for gold_tokens, pred_tokens in zip(gold_df['tokens'].tolist(), pred_df['tokens'].tolist())])
+
+    conll_results = evaluate_conll(gold_df, pred_df)
     official_f1 = sum(results["f"] for results in conll_results.values()) / len(conll_results)
     logger.info('Official avg F1: %.2f' % official_f1)

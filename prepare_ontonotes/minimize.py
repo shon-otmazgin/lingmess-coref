@@ -2,14 +2,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import sys
 import re
 import json
 import collections
-
-# TODO: need to fix it
-sys.path.append('../')
-import util
 import conll
 
 
@@ -71,7 +66,7 @@ class DocumentState(object):
             else:
                 merged_clusters.append(set(c1))
         merged_clusters = [list(c) for c in merged_clusters]
-        all_mentions = util.flatten(merged_clusters)
+        all_mentions = conll.flatten(merged_clusters)
         assert len(all_mentions) == len(set(all_mentions))
 
         return {
