@@ -41,9 +41,9 @@ def output_evaluation_metrics(metrics_dict, output_dir, prefix):
             writer.write(f'\n{prefix}:\n')
         for key, value in results.items():
             if isinstance(value, float):
-                print(f"  {key : <30} = {value:.3f}")
+                logger.info(f"  {key : <30} = {value:.3f}")
             elif isinstance(value, dict):
-                print(f"  {key : <30} = {value}")
+                logger.info(f"  {key : <30} = {value}")
 
     return results
 
