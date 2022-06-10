@@ -15,6 +15,7 @@ def _tokenize(tokenizer, tokens, clusters, speakers):
     new_token_map = []
     new_tokens = []
     last_speaker = None
+    logger.info(f'Tokenize documents...')
 
     for idx, (token, speaker) in enumerate(zip(tokens, speakers)):
         if last_speaker != speaker:

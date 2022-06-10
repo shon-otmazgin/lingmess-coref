@@ -120,7 +120,7 @@ def to_dataframe(file_path):
         if nlp is None:
             nlp = spacy.load("en_core_web_sm", exclude=["tagger", "parser", "lemmatizer", "ner", "textcat"])
         texts = df['text'].tolist()
-        logger.info(f'Tokenize text using Spacy...')
+        logger.info(f'Tokenize documents using Spacy...')
         df['tokens'] = [[tok.text for tok in doc] for doc in tqdm(nlp.pipe(texts), total=len(texts))]
     else:
         raise NotImplementedError(f'The jsonlines must include tokens/text/sentences attribute')

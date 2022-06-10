@@ -25,8 +25,7 @@ def main():
     args = parse_args()
 
     if args.experiment_name is not None:
-        # TODO: change entity
-        wandb.init(project=args.experiment_name, entity="shon711", config=args)
+        wandb.init(project=args.experiment_name, config=args)
 
     if os.path.exists(args.output_dir):
         if args.overwrite_output_dir:
