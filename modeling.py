@@ -350,7 +350,7 @@ class LingMessCoref(BertPreTrainedModel):
             all_logits = torch.cat((categories_logits, final_logits.unsqueeze(1)), dim=1)
 
             loss = self._get_marginal_log_likelihood_loss(all_logits, all_labels, span_mask)
-            outputs = (loss,) + outputs
+            outputs = (loss,) + outputs + (clusters_labels, )
 
         return outputs
 

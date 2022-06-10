@@ -3,7 +3,7 @@ import numpy as np
 import torch
 
 from consts import CATEGORIES
-from metrics import CorefEvaluator, MentionEvaluator
+from metrics import CorefEvaluator, MentionEvaluator, CorefCategories
 from util import create_clusters, create_mention_to_antecedent, update_metrics, \
     output_evaluation_metrics, write_prediction_to_jsonlines
 from tqdm import tqdm
@@ -24,13 +24,12 @@ class Evaluator:
         logger.info(f"***** Running Inference {prefix} *****")
         logger.info(f"  Examples number: {len(self.eval_dataloader.dataset)}")
 
-        metrics_dict = {'post_pruning': MentionEvaluator(), 'mentions': MentionEvaluator(), 'coref': CorefEvaluator()}
+        metrics_dict = {'loss': 0., 'post_pruning': MentionEvaluator(), 'mentions': MentionEvaluator(),
+                        'coref': CorefEvaluator(), 'coref_categories': CorefCategories()}
         doc_to_tokens = {}
         doc_to_subtoken_map = {}
         doc_to_new_word_map = {}
         doc_to_prediction = {}
-        categories_eval = {cat_name: {'cat_id': cat_id, 'tp': 0, 'fp': 0, 'fn': 0, 'tn': 0}
-                           for cat_name, cat_id in CATEGORIES.items()}
 
         evaluation = False
         with tqdm(desc="Inference", total=len(self.eval_dataloader.dataset)) as progress_bar:
@@ -42,12 +41,19 @@ class Evaluator:
                 gold_clusters = batch['gold_clusters']
 
                 with torch.no_grad():
-                    outputs = model(batch, gold_clusters=None, return_all_outputs=True)
+                    outputs = model(batch, gold_clusters=gold_clusters, return_all_outputs=True)
 
                 outputs_np = tuple(tensor.cpu().numpy() for tensor in outputs)
-                gold_clusters = gold_clusters.cpu().numpy() if gold_clusters is not None else gold_clusters
 
-                span_starts, span_ends, coref_logits, categories_labels = outputs_np
+                if gold_clusters is not None:
+                    evaluation = True
+                    gold_clusters = gold_clusters.cpu().numpy()
+                    loss, span_starts, span_ends, coref_logits, categories_labels, clusters_labels = outputs_np
+                    metrics_dict['loss'] += loss.item()
+                    metrics_dict['coref_categories'].update(coref_logits, categories_labels, clusters_labels)
+                else:
+                    span_starts, span_ends, coref_logits, categories_labels = outputs_np
+
                 doc_indices, mention_to_antecedent = create_mention_to_antecedent(span_starts, span_ends, coref_logits)
 
                 for i, doc_key in enumerate(doc_keys):
@@ -60,7 +66,6 @@ class Evaluator:
                     doc_to_new_word_map[doc_key] = new_token_map[i]
 
                     if gold_clusters is not None:
-                        evaluation = True
                         update_metrics(metrics_dict, span_starts[i], span_ends[i], gold_clusters[i], predicted_clusters)
 
                 progress_bar.update(n=len(doc_keys))

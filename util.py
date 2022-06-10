@@ -16,10 +16,12 @@ nlp = None
 
 
 def output_evaluation_metrics(metrics_dict, output_dir, prefix):
+    loss = metrics_dict['loss']
     post_pruning_mention_pr, post_pruning_mentions_r, post_pruning_mention_f1 = metrics_dict['post_pruning'].get_prf()
     mention_p, mentions_r, mention_f1 = metrics_dict['mentions'].get_prf()
     p, r, f1 = metrics_dict['coref'].get_prf()
     results = {
+        'eval_loss': loss,
         "post pruning mention precision": post_pruning_mention_pr,
         "post pruning mention recall": post_pruning_mentions_r,
         "post pruning mention f1": post_pruning_mention_f1,
@@ -30,6 +32,7 @@ def output_evaluation_metrics(metrics_dict, output_dir, prefix):
         "recall": r,
         "f1": f1
     }
+    results = {**results, **metrics_dict['coref_categories'].get_stats()}
 
     logger.info("***** Eval results {} *****".format(prefix))
     output_eval_file = os.path.join(output_dir, "eval_results.txt")
@@ -38,11 +41,9 @@ def output_evaluation_metrics(metrics_dict, output_dir, prefix):
             writer.write(f'\n{prefix}:\n')
         for key, value in results.items():
             if isinstance(value, float):
-                logger.info(f"  {key} = {value:.3f}")
-                writer.write(f"{key} = {value:.3f}\n")
-            else:
-                logger.info(f"  {key} = {value}")
-                writer.write(f"{key} = {value}\n")
+                print(f"  {key : <30} = {value:.3f}")
+            elif isinstance(value, dict):
+                print(f"  {key : <30} = {value}")
 
     return results
 
