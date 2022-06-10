@@ -256,10 +256,10 @@ class LingMessCoref(BertPreTrainedModel):
         start_coref_reps = start_coref_reps.view((batch_size, self.num_cats, max_k, self.ffnn_size))
         end_coref_reps = end_coref_reps.view((batch_size, self.num_cats, max_k, self.ffnn_size))
 
-        logits = torch.einsum('bnkf, ngf, bnlg -> bnkl', start_coref_reps, self.all_cats_antecedent_s2s_classifier, start_coref_reps) + \
-                 torch.einsum('bnkf, ngf, bnlg -> bnkl', end_coref_reps, self.all_cats_antecedent_e2e_classifier, end_coref_reps) + \
-                 torch.einsum('bnkf, ngf, bnlg -> bnkl', start_coref_reps, self.all_cats_antecedent_s2e_classifier, end_coref_reps) + \
-                 torch.einsum('bnkf, ngf, bnlg -> bnkl', end_coref_reps, self.all_cats_antecedent_e2s_classifier, start_coref_reps)
+        logits = torch.einsum('bnkf, nfg, bnlg -> bnkl', start_coref_reps, self.all_cats_antecedent_s2s_classifier, start_coref_reps) + \
+                 torch.einsum('bnkf, nfg, bnlg -> bnkl', end_coref_reps, self.all_cats_antecedent_e2e_classifier, end_coref_reps) + \
+                 torch.einsum('bnkf, nfg, bnlg -> bnkl', start_coref_reps, self.all_cats_antecedent_s2e_classifier, end_coref_reps) + \
+                 torch.einsum('bnkf, nfg, bnlg -> bnkl', end_coref_reps, self.all_cats_antecedent_e2s_classifier, start_coref_reps)
 
         bias = torch.einsum('bnkf, nf -> bnk', start_coref_reps, self.all_cats_antecedent_s2s_bias).unsqueeze(-1) + \
                torch.einsum('bnkf, nf -> bnk', end_coref_reps, self.all_cats_antecedent_e2e_bias).unsqueeze(-1) + \
