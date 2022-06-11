@@ -262,11 +262,11 @@ class LingMessCoref(BertPreTrainedModel):
         batch_size, max_k, _ = clusters_labels.size()
 
         categories_labels = clusters_labels.unsqueeze(1).repeat(1, self.num_cats, 1, 1) * categories_masks
-        all_labels = torch.cat((categories_labels, clusters_labels.unsqueeze(1)), dim=1)      # for the combined loss (L_coref)
+        all_labels = torch.cat((categories_labels, clusters_labels.unsqueeze(1)), dim=1)            # for the combined loss (L_coref + L_tasks)
 
         # null cluster
         zeros = torch.zeros((batch_size, self.num_cats + 1, max_k, 1), device=self.device)
-        all_labels = torch.cat((all_labels, zeros), dim=-1)                      # [batch_size, num_cats + 1, max_k, max_k + 1]
+        all_labels = torch.cat((all_labels, zeros), dim=-1)                                         # [batch_size, num_cats + 1, max_k, max_k + 1]
         no_antecedents = 1 - torch.sum(all_labels, dim=-1).bool().float()
         all_labels[:, :, :, -1] = no_antecedents
 
