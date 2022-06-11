@@ -262,10 +262,10 @@ class LingMessCoref(BertPreTrainedModel):
                  torch.einsum('bnkf, ngf, bnlg -> bnkl', all_starts, self.antecedent_s2e_all_weights, all_ends) + \
                  torch.einsum('bnkf, ngf, bnlg -> bnkl', all_ends,   self.antecedent_e2s_all_weights, all_starts)
 
-        biases = torch.einsum('bnkf, nf -> bnk', all_starts, self.antecedent_s2s_all_biases).unsqueeze(-1) + \
-                 torch.einsum('bnkf, nf -> bnk', all_ends,   self.antecedent_e2e_all_biases).unsqueeze(-1) + \
-                 torch.einsum('bnkf, nf -> bnk', all_starts, self.antecedent_s2e_all_biases).unsqueeze(-1) + \
-                 torch.einsum('bnkf, nf -> bnk', all_ends,   self.antecedent_e2s_all_biases).unsqueeze(-1)
+        biases = torch.einsum('bnkf, nf -> bnk', all_starts, self.antecedent_s2s_all_biases).unsqueeze(-2) + \
+                 torch.einsum('bnkf, nf -> bnk', all_ends,   self.antecedent_e2e_all_biases).unsqueeze(-2) + \
+                 torch.einsum('bnkf, nf -> bnk', all_ends,   self.antecedent_s2e_all_biases).unsqueeze(-2) + \
+                 torch.einsum('bnkf, nf -> bnk', all_starts, self.antecedent_e2s_all_biases).unsqueeze(-2)
 
         return logits + biases
 
