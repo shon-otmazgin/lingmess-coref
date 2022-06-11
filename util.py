@@ -255,16 +255,16 @@ def get_pronoun_id(span):
 
 
 def get_category_id(mention, antecedent):
-    mention, mention_is_pronoun = mention
-    antecedent, antecedent_is_pronoun = antecedent
+    mention, mention_pronoun_id = mention
+    antecedent, antecedent_pronoun_id = antecedent
 
-    if mention_is_pronoun > -1 and antecedent_is_pronoun > -1:
-        if mention_is_pronoun == antecedent_is_pronoun:
+    if mention_pronoun_id > -1 and antecedent_pronoun_id > -1:
+        if mention_pronoun_id == antecedent_pronoun_id:
             return CATEGORIES['pron-pron-comp']
         else:
             return CATEGORIES['pron-pron-no-comp']
 
-    if mention_is_pronoun > -1 or antecedent_is_pronoun > -1:
+    if mention_pronoun_id > -1 or antecedent_pronoun_id > -1:
         return CATEGORIES['pron-ent']
 
     if mention == antecedent:
