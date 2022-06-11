@@ -59,23 +59,31 @@ class LingMessCoref(BertPreTrainedModel):
         self.coref_start_all_mlps = FullyConnectedLayer(config, config.hidden_size, self.all_cats_size, args.dropout_prob)
         self.coref_end_all_mlps = FullyConnectedLayer(config, config.hidden_size, self.all_cats_size, args.dropout_prob)
 
-        self.antecedent_s2s_all_clfs = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
-        self.antecedent_e2e_all_clfs = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
-        self.antecedent_s2e_all_clfs = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
-        self.antecedent_e2s_all_clfs = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.antecedent_s2s_all_weights = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.antecedent_e2e_all_weights = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.antecedent_s2e_all_weights = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+        self.antecedent_e2s_all_weights = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size, self.ffnn_size)))
+
+        self.antecedent_s2s_all_biases = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size)))
+        self.antecedent_e2e_all_biases = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size)))
+        self.antecedent_s2e_all_biases = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size)))
+        self.antecedent_e2s_all_biases = nn.Parameter(torch.empty((self.num_cats, self.ffnn_size)))
 
         self.reset_parameters()
         self.init_weights()
 
     def reset_parameters(self) -> None:
-        init.kaiming_uniform_(self.antecedent_s2s_all_clfs, a=math.sqrt(5))
-        init.kaiming_uniform_(self.antecedent_e2e_all_clfs, a=math.sqrt(5))
-        init.kaiming_uniform_(self.antecedent_s2e_all_clfs, a=math.sqrt(5))
-        init.kaiming_uniform_(self.antecedent_e2s_all_clfs, a=math.sqrt(5))
-        # if self.bias is not None:
-        #     fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
-        #     bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-        #     init.uniform_(self.bias, -bound, bound)
+        W = [self.antecedent_s2s_all_weights, self.antecedent_e2e_all_weights,
+             self.antecedent_s2e_all_weights, self.antecedent_e2s_all_weights]
+
+        B = [self.antecedent_s2s_all_biases, self.antecedent_e2e_all_biases,
+             self.antecedent_s2e_all_biases, self.antecedent_e2s_all_biases]
+
+        for w, b in zip(W, B):
+            init.kaiming_uniform_(w, a=math.sqrt(5))
+            fan_in, _ = init._calculate_fan_in_and_fan_out(w)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            init.uniform_(b, -bound, bound)
 
     def num_parameters(self) -> tuple:
         def head_filter(x):
@@ -249,14 +257,17 @@ class LingMessCoref(BertPreTrainedModel):
         all_starts = self.transpose_for_scores(self.coref_start_all_mlps(start_reps))
         all_ends = self.transpose_for_scores(self.coref_end_all_mlps(end_reps))
 
-        logits = torch.einsum('bnkf, ngf, bnlg -> bnkl', all_starts, self.antecedent_s2s_all_clfs, all_starts) + \
-                 torch.einsum('bnkf, ngf, bnlg -> bnkl', all_ends,   self.antecedent_e2e_all_clfs, all_ends) + \
-                 torch.einsum('bnkf, ngf, bnlg -> bnkl', all_starts, self.antecedent_s2e_all_clfs, all_ends) + \
-                 torch.einsum('bnkf, ngf, bnlg -> bnkl', all_ends,   self.antecedent_e2s_all_clfs, all_starts)
+        logits = torch.einsum('bnkf, ngf, bnlg -> bnkl', all_starts, self.antecedent_s2s_all_weights, all_starts) + \
+                 torch.einsum('bnkf, ngf, bnlg -> bnkl', all_ends,   self.antecedent_e2e_all_weights, all_ends) + \
+                 torch.einsum('bnkf, ngf, bnlg -> bnkl', all_starts, self.antecedent_s2e_all_weights, all_ends) + \
+                 torch.einsum('bnkf, ngf, bnlg -> bnkl', all_ends,   self.antecedent_e2s_all_weights, all_starts)
 
-        # TODO: need to add bias term. (currently struggling)
+        biases = torch.einsum('bnkf, nf -> bnk', all_starts, self.antecedent_s2s_all_biases).unsqueeze(-1) + \
+                 torch.einsum('bnkf, nf -> bnk', all_ends,   self.antecedent_e2e_all_biases).unsqueeze(-1) + \
+                 torch.einsum('bnkf, nf -> bnk', all_starts, self.antecedent_s2e_all_biases).unsqueeze(-1) + \
+                 torch.einsum('bnkf, nf -> bnk', all_ends,   self.antecedent_e2s_all_biases).unsqueeze(-1)
 
-        return logits
+        return logits + biases
 
     def _get_all_labels(self, clusters_labels, categories_masks):
         batch_size, max_k, _ = clusters_labels.size()
