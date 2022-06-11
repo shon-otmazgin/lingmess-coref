@@ -227,15 +227,15 @@ class LingMessCoref(BertPreTrainedModel):
 
     def _calc_mention_logits(self, start_mention_reps, end_mention_reps):
         start_mention_logits = self.mention_start_classifier(start_mention_reps).squeeze(-1)  # [batch_size, seq_length]
-        end_mention_logits = self.mention_end_classifier(end_mention_reps).squeeze(-1)  # [batch_size, seq_length]
+        end_mention_logits = self.mention_end_classifier(end_mention_reps).squeeze(-1)        # [batch_size, seq_length]
 
-        temp = self.mention_s2e_classifier(start_mention_reps)  # [batch_size, seq_length]
+        temp = self.mention_s2e_classifier(start_mention_reps)                                # [batch_size, seq_length]
         joint_mention_logits = torch.matmul(temp,
-                                            end_mention_reps.permute([0, 2, 1]))  # [batch_size, seq_length, seq_length]
+                                            end_mention_reps.permute([0, 2, 1]))              # [batch_size, seq_length, seq_length]
 
         mention_logits = joint_mention_logits + start_mention_logits.unsqueeze(-1) + end_mention_logits.unsqueeze(-2)
-        mention_mask = self._get_mention_mask(mention_logits)  # [batch_size, seq_length, seq_length]
-        mention_logits = mask_tensor(mention_logits, mention_mask)  # [batch_size, seq_length, seq_length]
+        mention_mask = self._get_mention_mask(mention_logits)                                 # [batch_size, seq_length, seq_length]
+        mention_logits = mask_tensor(mention_logits, mention_mask)                            # [batch_size, seq_length, seq_length]
         return mention_logits
 
     def transpose_for_scores(self, x):
