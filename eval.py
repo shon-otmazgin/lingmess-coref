@@ -21,7 +21,7 @@ class Evaluator:
         # Eval!
         model.eval()
 
-        logger.info(f"***** Running Inference {prefix} *****")
+        logger.info(f"***** Running Inference on {self.args.eval_split} split {prefix} *****")
         logger.info(f"  Examples number: {len(self.eval_dataloader.dataset)}")
 
         metrics_dict = {'loss': 0., 'post_pruning': MentionEvaluator(), 'mentions': MentionEvaluator(),
