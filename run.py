@@ -102,6 +102,9 @@ def main():
     # Evaluation
     results = evaluator.evaluate(model)
 
+    # model.push_to_hub("lingmess-coref", organization='biu-nlp', use_temp_dir=True)
+    # tokenizer.push_to_hub("lingmess-coref", organization='biu-nlp', use_temp_dir=True)
+
     return results
 
 
