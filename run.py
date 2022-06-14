@@ -7,7 +7,7 @@ import torch
 from transformers import AutoConfig, AutoTokenizer
 
 from consts import SUPPORTED_MODELS
-from modeling import LingMessCoref
+from modeling_lingmess import LingMessCoref
 from training import train
 from eval import Evaluator
 from util import set_seed
