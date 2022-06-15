@@ -79,10 +79,10 @@ def read_jsonlines(file):
 
 
 def write_prediction_to_jsonlines(args, doc_to_prediction, doc_to_tokens, doc_to_subtoken_map, doc_to_new_word_map):
+    eval_file = args.dataset_files[args.eval_split]
     if args.output_file is not None:
         output_eval_file = args.output_file
     else:
-        eval_file = args.dataset_files[args.eval_split]
         output_eval_file = Path(eval_file).stem + '.output.jsonlines'
         if args.output_dir is not None:
             output_eval_file = os.path.join(args.output_dir, output_eval_file)
