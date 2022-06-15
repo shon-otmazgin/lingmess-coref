@@ -35,17 +35,11 @@ def output_evaluation_metrics(metrics_dict, output_dir, prefix):
     results = {**results, **metrics_dict['coref_categories'].get_stats()}
 
     logger.info("***** Eval results {} *****".format(prefix))
-    output_eval_file = os.path.join(output_dir, "eval_results.txt")
-    with open(output_eval_file, "a") as writer:
-        if prefix:
-            writer.write(f'\n{prefix}:\n')
-        for key, value in results.items():
-            if isinstance(value, float):
-                logger.info(f"  {key : <30} = {value:.3f}")
-                writer.write(f"  {key : <30} = {value:.3f}")
-            elif isinstance(value, dict):
-                logger.info(f"  {key : <30} = {value}")
-                writer.write(f"  {key : <30} = {value}")
+    for key, value in results.items():
+        if isinstance(value, float):
+            logger.info(f"  {key : <30} = {value:.3f}")
+        elif isinstance(value, dict):
+            logger.info(f"  {key : <30} = {value}")
 
     return results
 
