@@ -70,9 +70,8 @@ Note: If you want to train the model on your own dataset, please provide `cluste
 Inference on you own dataset
 ```
 python run.py \
-       --output_dir=lingmess \
-       --overwrite_output_dir \
        --model_name_or_path=biu-nlp/lingmess-coref \ 
+       --output_file=OUTPUT_FILE_PATH.jsonlines \
        --test_file=PATH_TO_FILE_TO_PREDICT.jsonlines \
        --eval_split=test \
        --max_tokens_in_batch=15000 \

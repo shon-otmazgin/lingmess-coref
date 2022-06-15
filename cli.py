@@ -16,7 +16,7 @@ def parse_args():
     parser.add_argument(
         "--output_dir",
         type=str,
-        required=True,
+        default=None,
         help="The output directory where the model checkpoints and predictions will be written.",
     )
     parser.add_argument("--overwrite_output_dir", action="store_true", help="Overwrite the content of the output directory")
@@ -38,6 +38,13 @@ def parse_args():
         type=str,
         default=None,
         help="Test set file path. should be jsonlines."
+    )
+
+    parser.add_argument(
+        "--output_file",
+        type=str,
+        default=None,
+        help="Prediction output file path. output will be in jsonlines format."
     )
 
     parser.add_argument("--do_train", action="store_true", help="Whether to run training.")

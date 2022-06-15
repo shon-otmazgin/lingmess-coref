@@ -28,13 +28,20 @@ def main():
     if args.experiment_name is not None:
         wandb.init(project=args.experiment_name, config=args)
 
-    if os.path.exists(args.output_dir):
-        if args.overwrite_output_dir:
-            shutil.rmtree(args.output_dir)
-            logger.info(f'--overwrite_output_dir used. directory {args.output_dir} deleted!')
+    if args.output_dir is not None:
+        if os.path.exists(args.output_dir):
+            if args.overwrite_output_dir:
+                shutil.rmtree(args.output_dir)
+                logger.info(f'--overwrite_output_dir used. directory {args.output_dir} deleted!')
+            else:
+                raise ValueError(f"Output directory ({args.output_dir}) already exists. Use --overwrite_output_dir to overcome.")
+        os.mkdir(args.output_dir)
+    else:
+        if args.do_train:
+            raise ValueError(f"Output directory is required while do_train=True.")
         else:
-            raise ValueError(f"Output directory ({args.output_dir}) already exists. Use --overwrite_output_dir to overcome.")
-    os.mkdir(args.output_dir)
+            if args.output_file is None:
+                raise ValueError(f"Output directory or output file is required.")
 
     # Setup CUDA, GPU & distributed training
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
