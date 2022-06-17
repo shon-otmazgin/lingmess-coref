@@ -5,6 +5,7 @@ Credit: Many code parts were taken from [s2e-coref](https://github.com/yuvalkirs
 
 ## Table of contents
 
+- [Demo](#demo)
 - [Environments and Requirements](#environments-and-requirements)
 - Create Datasets
    * [Prepare OntoNotes dataset](#prepare-ontonotes-dataset)
@@ -15,6 +16,12 @@ Credit: Many code parts were taken from [s2e-coref](https://github.com/yuvalkirs
 - [Inference](#inference)
 - [Training](#training)
 - [Citation](#citation)
+
+
+## Demo
+You can find a walk through demo on how to inference coreference clusters on custom examples
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/16raRuBhf6tnd0Yj00ct_UXcA7B-YdMw_?usp=sharing)
 
 ## Environments and Requirements
 
