@@ -19,7 +19,7 @@ Credit: Many code parts were taken from [s2e-coref](https://github.com/yuvalkirs
 
 
 ## Demo
-In below notebook you can find a walk through demo on how to inference coreference clusters on custom examples.
+In below notebook you will find a walk through demo on how to inference coreference clusters on custom examples.
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/16raRuBhf6tnd0Yj00ct_UXcA7B-YdMw_?usp=sharing)
 
