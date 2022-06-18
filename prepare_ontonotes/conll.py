@@ -72,7 +72,7 @@ def write_conll_doc(doc, f_obj):
 
 
 def official_conll_eval(gold_path, predicted_path, metric, official_stdout=True):
-    cmd = ["/home/nlp/shon711/lingmess-coref/prepare_ontonotes/conll-2012/scorer/v8.01/scorer.pl",
+    cmd = ["prepare_ontonotes/conll-2012/scorer/v8.01/scorer.pl",
            metric, gold_path, predicted_path, "none"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     stdout, stderr = process.communicate()
@@ -118,8 +118,8 @@ def evaluate_conll(gold_df, pred_df, official_stdout=True):
 
 if __name__ == '__main__':
     print(Path.cwd())
-    gold_path = '/home/nlp/shon711/lingmess-coref/prepare_ontonotes/test.english.jsonlines'
-    pred_path = '/home/nlp/shon711/lingmess-coref/evaluation/test.english.output.jsonlines'
+    gold_path = 'prepare_ontonotes/test.english.jsonlines'
+    pred_path = 'lingmess_predictions.jsonlines'
 
     gold_df = pd.read_json(gold_path, lines=True)
     gold_df['tokens'] = gold_df['sentences'].apply(lambda x: flatten(x))
