@@ -2,7 +2,6 @@ import logging
 import numpy as np
 import torch
 
-from consts import CATEGORIES
 from metrics import CorefEvaluator, MentionEvaluator, CorefCategories
 from util import create_clusters, create_mention_to_antecedent, update_metrics, \
     output_evaluation_metrics, write_prediction_to_jsonlines

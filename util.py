@@ -8,7 +8,7 @@ import random
 import pandas as pd
 import torch
 import numpy as np
-from consts import NULL_ID_FOR_COREF, CATEGORIES, STOPWORDS, PRONOUNS_GROUPS
+from consts import NULL_ID_FOR_COREF, CATEGORIES, PRONOUNS_GROUPS
 
 
 logger = logging.getLogger(__name__)

@@ -7,8 +7,7 @@ from transformers import BertPreTrainedModel, AutoModel
 from transformers.activations import ACT2FN
 
 from consts import CATEGORIES, STOPWORDS
-from util import extract_clusters, extract_mentions_to_clusters, \
-    mask_tensor, get_pronoun_id, get_category_id
+from util import extract_clusters, extract_mentions_to_clusters, mask_tensor, get_pronoun_id, get_category_id
 
 
 class FullyConnectedLayer(Module):

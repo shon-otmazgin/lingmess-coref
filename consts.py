@@ -3,9 +3,6 @@ SPEAKER_START = '#####'
 SPEAKER_END = '###'
 NULL_ID_FOR_COREF = -1
 
-PRONOUNS = {'himself', 'myself', 'me', 'this', 'her', 'we', 'him', 'they', 'yourself', 'them', 'theirs', 'hers', 'my',
-            'themselves', 'ours', 'itself', 'that', 'us', 'yours', 'your', 'ourselves', 'mine', 'yourselves', 'it',
-            'herself', 'she', 'he', 'its', 'you', 'his', 'our', 'their', 'i'}
 
 PRONOUNS_GROUPS = {
             'i': 0, 'me': 0, 'my': 0, 'mine': 0, 'myself': 0,
