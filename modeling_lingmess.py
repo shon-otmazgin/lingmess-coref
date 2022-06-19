@@ -351,7 +351,7 @@ class LingMessCoref(BertPreTrainedModel):
         categories_logits = torch.cat((categories_logits, torch.zeros((batch_size, self.num_cats, max_k, 1), device=self.device)), dim=-1)  # [batch_size, num_cats, max_k, max_k + 1]
 
         if return_all_outputs:
-            outputs = (mention_start_ids, mention_end_ids, final_logits, categories_labels)
+            outputs = (mention_start_ids, mention_end_ids, final_logits)
         else:
             outputs = tuple()
 
@@ -361,6 +361,6 @@ class LingMessCoref(BertPreTrainedModel):
             all_logits = torch.cat((categories_logits, final_logits.unsqueeze(1)), dim=1)
 
             loss = self._get_marginal_log_likelihood_loss(all_logits, all_labels, span_mask)
-            outputs = (loss,) + outputs + (clusters_labels, )
+            outputs = (loss,) + outputs + (categories_labels, clusters_labels, )
 
         return outputs

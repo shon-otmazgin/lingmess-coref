@@ -276,20 +276,19 @@ class S2E(BertPreTrainedModel):
         final_logits = self._mask_antecedent_logits(final_logits, span_mask)
         # adding zero logits for null span
         final_logits = torch.cat((final_logits, torch.zeros((batch_size, max_k, 1), device=self.device)), dim=-1)  # [batch_size, max_k, max_k + 1]
-        categories_labels = self._get_categories_labels(
-            tokens, subtoken_map, new_token_map, mention_start_ids, mention_end_ids
-        )
 
         if return_all_outputs:
-            outputs = (mention_start_ids, mention_end_ids, final_logits, categories_labels)
+            outputs = (mention_start_ids, mention_end_ids, final_logits)
         else:
             outputs = tuple()
 
         if gold_clusters is not None:
             labels_after_pruning = self._get_cluster_labels_after_pruning(mention_start_ids, mention_end_ids, gold_clusters)
             loss = self._get_marginal_log_likelihood_loss(final_logits, labels_after_pruning, span_mask)
-
-            outputs = (loss,) + outputs + (labels_after_pruning[:, :, :-1], )
+            categories_labels = self._get_categories_labels(
+                tokens, subtoken_map, new_token_map, mention_start_ids, mention_end_ids
+            )
+            outputs = (loss,) + outputs + (categories_labels, labels_after_pruning[:, :, :-1], )
 
         return outputs
 

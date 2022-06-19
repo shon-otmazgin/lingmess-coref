@@ -52,7 +52,7 @@ class Evaluator:
                     metrics_dict['loss'] += loss.item()
                     metrics_dict['coref_categories'].update(coref_logits, categories_labels, clusters_labels)
                 else:
-                    span_starts, span_ends, coref_logits, categories_labels = outputs_np
+                    span_starts, span_ends, coref_logits = outputs_np
 
                 doc_indices, mention_to_antecedent = create_mention_to_antecedent(span_starts, span_ends, coref_logits)
 
