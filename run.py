@@ -72,7 +72,8 @@ def main():
     # load datasets
     dataset, dataset_files = coref_dataset.create(
         tokenizer=tokenizer,
-        train_file=args.train_file, dev_file=args.dev_file, test_file=args.test_file
+        train_file=args.train_file, dev_file=args.dev_file, test_file=args.test_file,
+        cache_dir=args.cache_dir
     )
     args.dataset_files = dataset_files
 
