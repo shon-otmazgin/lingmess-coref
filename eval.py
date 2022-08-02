@@ -1,4 +1,6 @@
 import logging
+import os.path
+
 import numpy as np
 import torch
 
@@ -47,11 +49,11 @@ class Evaluator:
                 if gold_clusters is not None:
                     evaluation = True
                     gold_clusters = gold_clusters.cpu().numpy()
-                    loss, span_starts, span_ends, coref_logits, categories_labels, clusters_labels = outputs_np
+                    loss, span_starts, span_ends, mention_logits, coref_logits, topk_1d_indices, categories_labels, clusters_labels = outputs_np
                     metrics_dict['loss'] += loss.item()
                     metrics_dict['coref_categories'].update(coref_logits, categories_labels, clusters_labels)
                 else:
-                    span_starts, span_ends, coref_logits = outputs_np
+                    span_starts, span_ends, mention_logits, coref_logits, topk_1d_indices = outputs_np
 
                 doc_indices, mention_to_antecedent = create_mention_to_antecedent(span_starts, span_ends, coref_logits)
 
@@ -66,6 +68,11 @@ class Evaluator:
 
                     if gold_clusters is not None:
                         update_metrics(metrics_dict, span_starts[i], span_ends[i], gold_clusters[i], predicted_clusters)
+
+                    doc_key = doc_key.replace('/', '_')
+                    # np.save(os.path.join(self.args.output_dir, doc_key + '_mention_logits'), mention_logits[i])
+                    np.save(os.path.join(self.args.output_dir, doc_key + '_coref_logits'), coref_logits[i])
+                    np.save(os.path.join(self.args.output_dir, doc_key + '_top_indices'), topk_1d_indices[i])
 
                 progress_bar.update(n=len(doc_keys))
 
