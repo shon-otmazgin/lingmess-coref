@@ -7,8 +7,8 @@ import torch
 from transformers import AutoConfig, AutoTokenizer
 
 from consts import SUPPORTED_MODELS
-from modeling_lingmess import LingMessCoref as coref_model
-# from modeling_s2e import S2E as coref_model # if you want to run the baseline
+# from modeling_lingmess import LingMessCoref as coref_model
+from modeling_s2e import S2E as coref_model # if you want to run the baseline
 from training import train
 from eval import Evaluator
 from util import set_seed

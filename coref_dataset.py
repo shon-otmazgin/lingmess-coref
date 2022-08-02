@@ -3,6 +3,7 @@ import logging
 import hashlib
 from collections import defaultdict
 
+import datasets
 from datasets import Dataset, DatasetDict
 from tqdm import tqdm
 
