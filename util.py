@@ -82,11 +82,11 @@ def write_prediction_to_jsonlines(args, doc_to_prediction, doc_to_tokens, doc_to
             output_eval_file = os.path.join(args.output_dir, output_eval_file)
     logger.info(f'Predicted clusters at: {output_eval_file}')
 
-    docs = read_jsonlines(file=eval_file)
+    # docs = read_jsonlines(file=eval_file)
     with open(output_eval_file, "w") as writer:
-        for doc in docs:
-            doc_key = doc['doc_key']
-            assert doc_key in doc_to_prediction
+        for doc_key in doc_to_prediction:
+            # doc_key = doc['doc_key']
+            # assert doc_key in doc_to_prediction
 
             predicted_clusters = doc_to_prediction[doc_key]
             tokens = doc_to_tokens[doc_key]
@@ -94,8 +94,7 @@ def write_prediction_to_jsonlines(args, doc_to_prediction, doc_to_tokens, doc_to
             new_word_map = doc_to_new_word_map[doc_key]
 
             new_predicted_clusters = align_clusters(predicted_clusters, subtoken_map, new_word_map)
-            doc['tokens'] = tokens
-            doc['clusters'] = new_predicted_clusters
+            doc = {'tokens': tokens, 'clusters': new_predicted_clusters}
 
             writer.write(json.dumps(doc) + "\n")
 
