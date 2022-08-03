@@ -94,7 +94,7 @@ def write_prediction_to_jsonlines(args, doc_to_prediction, doc_to_tokens, doc_to
             new_word_map = doc_to_new_word_map[doc_key]
 
             new_predicted_clusters = align_clusters(predicted_clusters, subtoken_map, new_word_map)
-            doc = {'tokens': tokens, 'clusters': new_predicted_clusters}
+            doc = {'doc_key': doc_key, 'tokens': tokens, 'clusters': new_predicted_clusters}
 
             writer.write(json.dumps(doc) + "\n")
 
