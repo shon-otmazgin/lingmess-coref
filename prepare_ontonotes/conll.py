@@ -56,7 +56,6 @@ def write_conll_doc(doc, f_obj):
 
     f_obj.write(f"#begin document ({doc_id}); part {part_id:0>3d}\n")
     for token_idx, token in enumerate(tokens):
-        f_obj.write("\n")
         cluster_info_lst = []
         for cluster_marker in starts[token_idx]:
             cluster_info_lst.append(f"({cluster_marker}")
@@ -68,7 +67,8 @@ def write_conll_doc(doc, f_obj):
 
         f_obj.write(f"{doc_id}  {part_id}  {token_idx:>2}"
                     f"  {token:>{max_word_len}}{placeholder}  {cluster_info}\n")
-    f_obj.write("#end document\n\n")
+    f_obj.write("\n")
+    f_obj.write("#end document\n")
 
 
 def official_conll_eval(gold_path, predicted_path, metric, official_stdout=True):
@@ -112,6 +112,8 @@ def evaluate_conll(gold_df, pred_df, official_stdout=True):
             doc_key = doc['doc_key']
             doc['clusters'] = pred_df[pred_df['doc_key'] == doc_key]['clusters'].values[0]
             write_conll_doc(doc, pred_file)
+    print(gold_file.name)
+    print(pred_file.name)
     results = {m: official_conll_eval(gold_file.name, pred_file.name, m, official_stdout) for m in ("muc", "bcub", "ceafe")}
     return results
 
@@ -119,7 +121,8 @@ def evaluate_conll(gold_df, pred_df, official_stdout=True):
 if __name__ == '__main__':
     print(Path.cwd())
     gold_path = 'prepare_ontonotes/test.english.jsonlines'
-    pred_path = 'lingmess_predictions.jsonlines'
+    pred_path = '/home/nlp/shon711/lingmess-coref/test/test.english.output.jsonlines'
+    # pred_path = '/home/nlp/shon711/lingmess-coref/test2/test.english.output.jsonlines'
 
     gold_df = pd.read_json(gold_path, lines=True)
     gold_df['tokens'] = gold_df['sentences'].apply(lambda x: flatten(x))
