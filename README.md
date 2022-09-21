@@ -3,6 +3,7 @@ This repository is the official implementation of the paper ["LingMess: Linguist
 
 Credit: Many code parts were taken from [s2e-coref](https://github.com/yuvalkirstain/s2e-coref#requirements) repo.
 
+
 ## Table of contents
 
 - [Demo](#demo)
@@ -19,6 +20,9 @@ Credit: Many code parts were taken from [s2e-coref](https://github.com/yuvalkirs
 
 
 ## Demo
+### UPDATE: 
+`LingMess` model integrated to the pip-installable package `fastcoref` - https://github.com/shon-otmazgin/fastcoref
+
 In below notebook you will find a walk through demo on how to inference coreference clusters on custom examples.
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/16raRuBhf6tnd0Yj00ct_UXcA7B-YdMw_?usp=sharing)
@@ -88,6 +92,7 @@ The output file  located at `OUTPUT_FILE_PATH.jsonlines`
 
 The output file includes the predicted clusters. They are a list of coreference clusters such as each cluster contains a list of mention offsets `[start, end]` . These offsets correspond to the tokenization in the field `tokens`.
 
+Note: you can find other arguments to configure at `cli.py`
 
 To Replicate Evaluation on `OntoNotes`, set `--test_file` to OntoNotes test file.
 
