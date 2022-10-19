@@ -50,12 +50,21 @@ def main():
     set_seed(args)
 
     config = AutoConfig.from_pretrained(args.model_name_or_path, cache_dir=args.cache_dir)
+    config.coref_head = {
+        "max_span_length": args.max_span_length,
+        "top_lambda": args.top_lambda,
+        "ffnn_size": args.ffnn_size,
+        "dropout_prob": args.dropout_prob,
+        "max_segment_len": args.max_segment_len,
+        "max_doc_len": 4096
+    }
+
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, use_fast=True,
                                               add_prefix_space=True, cache_dir=args.cache_dir)
 
     model, loading_info = coref_model.from_pretrained(
         args.model_name_or_path, output_loading_info=True,
-        config=config, cache_dir=args.cache_dir, args=args
+        config=config, cache_dir=args.cache_dir
     )
 
     if model.base_model_prefix not in SUPPORTED_MODELS:
@@ -111,6 +120,7 @@ def main():
     # Evaluation
     results = evaluator.evaluate(model)
 
+    # config.push_to_hub("lingmess-coref", organization='biu-nlp', use_temp_dir=True)
     # model.push_to_hub("lingmess-coref", organization='biu-nlp', use_temp_dir=True)
     # tokenizer.push_to_hub("lingmess-coref", organization='biu-nlp', use_temp_dir=True)
 
